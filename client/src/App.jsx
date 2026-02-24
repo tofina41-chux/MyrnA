@@ -17,15 +17,15 @@ function App() {
         <h1 className="text-3xl font-serif tracking-tight text-gray-900 mb-2">
           MYR Art Direction©
         </h1>
-        <p className="text-sm uppercase tracking-widest text-gray-500 mb-8">
+        <p className="text-sm uppercase tracking-widest text-red-600 mb-8">
           Strategic Art • Curation • Social Impact
         </p>
 
         <div className="pt-4 border-t border-gray-100">
           <p className="text-xs text-gray-400 mb-2 italic">Infrastructure Status:</p>
           <span className={`text-xs font-medium px-3 py-1 rounded-full ${status === "Connection Successful"
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
+            ? "bg-green-100 text-green-700"
+            : "bg-red-100 text-red-700"
             }`}>
             {status}
           </span>
