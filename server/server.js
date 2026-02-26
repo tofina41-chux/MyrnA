@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const Project = require('./models/Project'); // Import the model we created
+const Project = require('./models/Project');
 
 const app = express();
 app.use(cors());
@@ -14,17 +14,17 @@ mongoose.connect(process.env.MONGO_URI)
 
 // --- ROUTES ---
 
-// 1. GET all projects (The "Gallery" route)
+// 1. GET all projects
 app.get('/api/projects', async (req, res) => {
     try {
-        const projects = await Project.find();
+        const projects = await Project.find().sort({ createdAt: -1 }); // Newest first
         res.json(projects);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2. POST a new project (To add Myrna's art)
+// 2. POST a new project
 app.post('/api/projects', async (req, res) => {
     try {
         const newProject = new Project(req.body);
@@ -35,10 +35,18 @@ app.post('/api/projects', async (req, res) => {
     }
 });
 
-// Status Route
-app.get('/api/status', (req, res) => {
-    res.json({ message: "Connection Successful", db: "Local MongoDB" });
+// 3. DELETE a project (FIXED)
+app.delete('/api/projects/:id', async (req, res) => {
+    try {
+        const result = await Project.findByIdAndDelete(req.params.id);
+        if (!result) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+        res.status(200).json({ message: "Project deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to delete" });
+    }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
