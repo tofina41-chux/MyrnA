@@ -1,8 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Navbar from './components/Navbar';
 import Gallery from './components/Gallery';
 import AddProject from './components/AddProject';
+import ProjectDetails from './pages/ProjectDetails';
+import About from './pages/About'; // We will build this next
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -10,7 +13,6 @@ function App() {
 
   const toggleTheme = () => {
     setDarkMode(!darkMode);
-    // This targets the very top <html> tag for Tailwind dark: classes
     if (!darkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -35,35 +37,22 @@ function App() {
 
       <div className="min-h-screen bg-white dark:bg-[#0a0a0a] transition-colors duration-700 font-sans">
         
-        {/* 🧭 Public Navigation (Clean & Minimal) */}
-        <nav className="bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md border-b border-gray-100 dark:border-white/10 p-6 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <Link to="/" className="font-serif tracking-tighter text-3xl dark:text-white uppercase italic">MYR©</Link>
-            
-            <div className="flex items-center space-x-10 text-[10px] uppercase tracking-[0.3em] font-medium">
-              <Link to="/" className="text-black dark:text-white hover:italic transition-all">Archive</Link>
-              <button 
-                onClick={toggleTheme}
-                className="text-black dark:text-white border border-black/10 dark:border-white/20 px-3 py-1 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all"
-              >
-                {darkMode ? 'Light' : 'Dark'}
-              </button>
-            </div>
-          </div>
-        </nav>
+        {/* 🧭 Replaced the old nav with the new component */}
+        <Navbar darkMode={darkMode} toggleTheme={toggleTheme} />
 
         {/* 🎞️ Routes */}
         <div className="py-10">
           <Routes>
             <Route path="/" element={<Gallery darkMode={darkMode} isAdmin={false} />} />
-            {/* The "Secret" Admin Route */}
             <Route path="/admin" element={<Gallery darkMode={darkMode} isAdmin={true} />} />
+            <Route path="/about" element={<About />} />
             <Route path="/add" element={<AddProject />} />
+            <Route path="/project/:id" element={<ProjectDetails />} />
           </Routes>
         </div>
 
-        {/* 🎡 Infinite Marquee */}
-        <div className="bg-black dark:bg-white text-white dark:text-black py-4 overflow-hidden flex whitespace-nowrap border-y border-black dark:border-white">
+        {/* 🎡 Infinite Marquee (Bottom) */}
+        <div className="fixed bottom-0 w-full bg-black dark:bg-white text-white dark:text-black py-4 overflow-hidden flex whitespace-nowrap border-y border-black dark:border-white z-40">
           <motion.div 
             className="flex space-x-12 items-center"
             animate={{ x: [0, -1500] }}
