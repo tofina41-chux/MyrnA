@@ -6,6 +6,7 @@ import Gallery from './components/Gallery';
 import AddProject from './components/AddProject';
 import ProjectDetails from './pages/ProjectDetails';
 import About from './pages/About'; // We will build this next
+import Services from './pages/Services';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -48,6 +49,7 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/add" element={<AddProject />} />
             <Route path="/project/:id" element={<ProjectDetails />} />
+            <Route path="/services" element={<Services />} />
           </Routes>
         </div>
 

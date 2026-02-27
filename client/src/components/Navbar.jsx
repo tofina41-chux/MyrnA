@@ -10,6 +10,7 @@ function Navbar({ darkMode, toggleTheme }) {
           <Link to="/" className="text-black dark:text-white hover:italic transition-all">Archive</Link>
           <Link to="/about" className="text-black dark:text-white hover:italic transition-all">About</Link>
           <Link to="/journal" className="text-black dark:text-white hover:italic transition-all">Journal</Link>
+          <Link to="/services" className="text-black dark:text-white hover:italic transition-all">Services</Link>
           
           <button 
             onClick={toggleTheme}
