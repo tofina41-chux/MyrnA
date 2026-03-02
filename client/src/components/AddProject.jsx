@@ -11,7 +11,6 @@ function AddProject() {
     });
 
     const handleUpload = () => {
-        // Ensure Cloudinary script is present
         if (!window.cloudinary) {
             alert("Cloudinary script not found. Check index.html!");
             return;
@@ -27,14 +26,14 @@ function AddProject() {
                 styles: {
                     palette: {
                         window: "#FFFFFF",
-                        sourceBg: "#F4F4F5",
-                        windowBorder: "#909090",
-                        tabIcon: "#000000",
-                        inactiveTabIcon: "#69778A",
-                        menuIcons: "#000000",
-                        link: "#000000",
-                        action: "#000000",
-                        inProgress: "#000000",
+                        sourceBg: "#FFFFFF",
+                        windowBorder: "#FF5F1F", // MYR Orange border for the widget
+                        tabIcon: "#FF5F1F",
+                        inactiveTabIcon: "#000000",
+                        menuIcons: "#FF5F1F",
+                        link: "#FF5F1F",
+                        action: "#FF5F1F",
+                        inProgress: "#FF5F1F",
                         complete: "#20B832",
                         error: "#c43a31",
                         textDark: "#000000",
@@ -45,16 +44,10 @@ function AddProject() {
             },
             (error, result) => {
                 if (!error && result && result.event === "success") {
-                    console.log("Image Uploaded! URL:", result.info.secure_url);
-                    // Update the state so the image appears in the form
                     setFormData(prev => ({ ...prev, imageUrl: result.info.secure_url }));
-                }
-                if (error) {
-                    console.error("Cloudinary Error:", error);
                 }
             }
         );
-
         myWidget.open();
     };
 
@@ -70,7 +63,7 @@ function AddProject() {
             });
             if (response.ok) {
                 alert("Masterpiece Archived. ✨");
-                window.location.href = "/admin"; 
+                window.location.href = "/admin";
             }
         } catch (err) {
             console.error("Save Error:", err);
@@ -78,57 +71,65 @@ function AddProject() {
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-[#0a0a0a] p-12 transition-colors duration-700">
+        /* Change #2: Forced White Background */
+        <div className="min-h-screen bg-white p-12 pb-40">
             <div className="max-w-2xl mx-auto">
-                <h2 className="text-2xl font-serif mb-8 border-b border-gray-100 dark:border-white/10 pb-4 dark:text-white uppercase italic tracking-tighter">Add to Archive</h2>
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Change #1: Wide spacing font */}
+                <h2 className="project-title text-2xl mb-12 border-b border-black/5 pb-6 text-black italic">
+                    Add to Archive
+                </h2>
+
+                <form onSubmit={handleSubmit} className="space-y-10">
                     {/* 📸 Visual Upload Area */}
                     <div className="mb-8">
-                        <label className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-4 font-bold">Project Visual</label>
-                        <div className="border-2 border-dashed border-neutral-200 dark:border-white/10 p-4 text-center bg-neutral-50/50 dark:bg-white/5 transition-all">
+                        <label className="block text-[10px] uppercase tracking-[0.4em] text-myr-orange mb-4 font-bold">
+                            Project Visual
+                        </label>
+                        <div className="border border-dashed border-black/10 p-2 text-center bg-neutral-50 hover:bg-white hover:border-myr-orange transition-all duration-500">
                             {formData.imageUrl ? (
-                                <div className="relative group">
-                                    <img 
-                                        src={formData.imageUrl} 
-                                        alt="Preview" 
-                                        className="max-h-80 mx-auto grayscale hover:grayscale-0 transition-all duration-700 object-contain" 
+                                <div className="relative p-4">
+                                    {/* Change #3: No grayscale on preview */}
+                                    <img
+                                        src={formData.imageUrl}
+                                        alt="Preview"
+                                        className="max-h-80 mx-auto object-contain shadow-sm"
                                     />
-                                    <button 
+                                    <button
                                         type="button"
-                                        onClick={() => setFormData({...formData, imageUrl: ''})}
-                                        className="mt-6 text-[9px] text-red-500 uppercase tracking-widest border border-red-500/20 px-3 py-1.5 hover:bg-red-500 hover:text-white transition-all"
+                                        onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                                        className="mt-6 text-[9px] text-red-500 uppercase tracking-widest border-b border-red-500/20 hover:border-red-500 transition-all"
                                     >
                                         [ Remove & Replace ]
                                     </button>
                                 </div>
                             ) : (
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={handleUpload}
-                                    className="py-24 w-full text-[10px] uppercase tracking-[0.4em] text-neutral-400 hover:text-black dark:hover:text-white transition-all group"
+                                    className="py-24 w-full text-[10px] uppercase tracking-[0.5em] text-neutral-400 hover:text-myr-orange transition-all group"
                                 >
-                                    <span className="block text-2xl mb-2 group-hover:scale-110 transition-transform">+</span>
-                                    Upload Media
+                                    <span className="block text-3xl mb-4 group-hover:scale-125 transition-transform">+</span>
+                                    Initiate Upload
                                 </button>
                             )}
                         </div>
                     </div>
 
-                    <div className="space-y-8">
+                    <div className="space-y-12">
+                        {/* Title Input */}
                         <input
                             type="text"
                             placeholder="PROJECT TITLE"
-                            className="w-full border-b border-neutral-200 dark:border-white/10 bg-transparent py-4 focus:border-black dark:focus:border-white outline-none dark:text-white text-2xl font-serif italic tracking-tighter transition-all"
+                            className="w-full border-b border-black/10 bg-transparent py-4 focus:border-myr-orange outline-none text-black text-2xl font-serif italic tracking-tighter transition-all placeholder:opacity-20"
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             required
                         />
-                        
+
                         <div className="grid grid-cols-2 gap-12">
                             <div className="flex flex-col">
-                                <label className="text-[9px] uppercase tracking-widest text-neutral-400 mb-1">Category</label>
+                                <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-2 font-bold">Category</label>
                                 <select
-                                    className="border-b border-neutral-200 dark:border-white/10 bg-transparent py-2 outline-none dark:text-white text-[10px] uppercase tracking-widest cursor-pointer"
+                                    className="border-b border-black/10 bg-transparent py-2 outline-none text-black text-[10px] uppercase tracking-widest cursor-pointer focus:border-myr-orange transition-colors"
                                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                 >
                                     <option value="Curation">Curation</option>
@@ -137,30 +138,31 @@ function AddProject() {
                                 </select>
                             </div>
                             <div className="flex flex-col">
-                                <label className="text-[9px] uppercase tracking-widest text-neutral-400 mb-1">Location</label>
+                                <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-2 font-bold">Location</label>
                                 <input
                                     type="text"
                                     placeholder="E.G. MOMBASA"
-                                    className="border-b border-neutral-200 dark:border-white/10 bg-transparent py-2 outline-none dark:text-white text-[10px] uppercase tracking-widest"
+                                    className="border-b border-black/10 bg-transparent py-2 outline-none text-black text-[10px] uppercase tracking-widest focus:border-myr-orange transition-colors placeholder:opacity-30"
                                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                                 />
                             </div>
                         </div>
 
                         <div className="flex flex-col">
-                            <label className="text-[9px] uppercase tracking-widest text-neutral-400 mb-2">Narrative</label>
+                            <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-4 font-bold">Narrative</label>
                             <textarea
                                 placeholder="THE STORY BEHIND THE IMPACT..."
-                                className="w-full border border-neutral-100 dark:border-white/10 bg-transparent p-6 h-48 outline-none focus:border-black dark:focus:border-white dark:text-white font-light leading-relaxed text-sm"
+                                className="w-full border border-black/5 bg-neutral-50/30 p-8 h-48 outline-none focus:border-myr-orange text-black font-light leading-relaxed text-sm placeholder:opacity-30"
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 required
                             ></textarea>
                         </div>
                     </div>
 
-                    <button 
-                        type="submit" 
-                        className="w-full bg-black dark:bg-white text-white dark:text-black py-8 text-[10px] uppercase tracking-[0.6em] font-bold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all mt-12"
+                    {/* Change #4: Main button in MYR Orange */}
+                    <button
+                        type="submit"
+                        className="w-full bg-myr-orange text-white py-8 text-[11px] uppercase tracking-[0.6em] font-bold hover:bg-black transition-all duration-500 mt-12 shadow-lg shadow-myr-orange/10"
                     >
                         Commit to Archive
                     </button>

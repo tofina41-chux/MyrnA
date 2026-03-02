@@ -1,1 +1,38 @@
 @import "tailwindcss";
+
+@theme {
+    /* Define the Strategic Orange */
+    --color-myr-orange: #ff5a00;
+
+    /* High-end Spacing */
+    --letter-spacing-widest: 0.3em;
+    --letter-spacing-tightest: -0.05em;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Tenor+Sans&family=Inter:wght@300;400;600&family=Cormorant+Garamond:ital,wght@1,300;1,500&display=swap');
+
+:root {
+    background-color: white;
+    color: black;
+}
+
+/* Force clean white background across the app */
+body {
+    font-family: 'Inter', sans-serif;
+    @apply bg-white text-black;
+}
+
+/* Change #1: Letter spacing and font for titles */
+.project-title {
+    font-family: 'Tenor Sans', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-widest);
+}
+
+/* Update Custom Cursor to MYR Orange */
+.custom-cursor {
+    border-color: var(--color-myr-orange) !important;
+    mix-blend-difference: normal !important;
+    /* Better visibility on white */
+    background-color: rgba(255, 90, 0, 0.1);
+}

@@ -5,22 +5,19 @@ import Navbar from './components/Navbar';
 import Gallery from './components/Gallery';
 import AddProject from './components/AddProject';
 import ProjectDetails from './pages/ProjectDetails';
-import About from './pages/About'; // We will build this next
+import About from './pages/About';
 import Services from './pages/Services';
 import Journal from './pages/Journal';
 import Footer from './components/Footer';
 
 function App() {
+  // Change #2: Forced White Theme (State remains for potential future use, but logic is fixed to Light)
   const [darkMode, setDarkMode] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
+  // Simplified toggle for the presentation - keeping it white as per request
   const toggleTheme = () => {
-    setDarkMode(!darkMode);
-    if (!darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    console.log("Theme is locked to Light Mode per brand guidelines.");
   };
 
   useEffect(() => {
@@ -31,45 +28,33 @@ function App() {
 
   return (
     <Router>
-      {/* 🖱️ Custom Cursor */}
+      {/* 🖱️ Change #4: Custom Cursor (Now Orange) */}
       <motion.div
-        className="fixed top-0 left-0 w-6 h-6 border border-black dark:border-white rounded-full pointer-events-none z-[9999] hidden md:block mix-blend-difference"
-        animate={{ x: mousePos.x - 12, y: mousePos.y - 12 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.5 }}
+        className="custom-cursor fixed top-0 left-0 w-8 h-8 border-2 border-myr-orange rounded-full pointer-events-none z-[9999] hidden md:block"
+        animate={{ x: mousePos.x - 16, y: mousePos.y - 16 }}
+        transition={{ type: "spring", damping: 30, stiffness: 250, mass: 0.5 }}
       />
 
-      <div className="min-h-screen bg-white dark:bg-[#0a0a0a] transition-colors duration-700 font-sans">
+      {/* Change #2: Container forced to White Background */}
+      <div className="min-h-screen bg-white text-black transition-colors duration-700 font-sans pb-24">
 
-        {/* 🧭 Replaced the old nav with the new component */}
-        <Navbar darkMode={darkMode} toggleTheme={toggleTheme} />
+        {/* Navbar: Passing false to darkMode to keep it in 'Light' styling */}
+        <Navbar darkMode={false} toggleTheme={toggleTheme} />
 
-        {/* 🎞️ Routes */}
-        <div className="py-10">
+        <main className="py-10">
           <Routes>
-            <Route path="/" element={<Gallery darkMode={darkMode} isAdmin={false} />} />
-            <Route path="/admin" element={<Gallery darkMode={darkMode} isAdmin={true} />} />
+            <Route path="/" element={<Gallery isAdmin={false} />} />
+            <Route path="/admin" element={<Gallery isAdmin={true} />} />
             <Route path="/about" element={<About />} />
+            <Route path="/services" element={<Services />} />
             <Route path="/add" element={<AddProject />} />
             <Route path="/project/:id" element={<ProjectDetails />} />
-            <Route path="/services" element={<Services />} />
             <Route path="/journal" element={<Journal />} />
           </Routes>
-        </div>
+        </main>
 
-        {/* 🎡 Infinite Marquee (Bottom) */}
-        <div className="fixed bottom-0 w-full bg-black dark:bg-white text-white dark:text-black py-4 overflow-hidden flex whitespace-nowrap border-y border-black dark:border-white z-40">
-          <motion.div
-            className="flex space-x-12 items-center"
-            animate={{ x: [0, -1500] }}
-            transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
-          >
-            {[...Array(10)].map((_, i) => (
-              <span key={i} className="text-[10px] uppercase tracking-[0.5em] font-bold">
-                50% Proceeds Reinvested into Education — Curation with Purpose — Strategic Art Direction —
-              </span>
-            ))}
-          </motion.div>
-        </div>
+
+        {/* Persistent Footer */}
         <Footer />
       </div>
     </Router>
