@@ -29,6 +29,10 @@ function Footer() {
                         Inquiries: hello@myr-art.com
                     </a>
                 </div>
+                <div className="flex gap-6 mt-8">
+                    <a href="#" className="text-[9px] uppercase tracking-widest hover:text-myr-orange transition-all italic">Instagram ↗</a>
+                    <a href="#" className="text-[9px] uppercase tracking-widest hover:text-myr-orange transition-all italic">LinkedIn ↗</a>
+                </div>
             </div>
         </footer>
     );
