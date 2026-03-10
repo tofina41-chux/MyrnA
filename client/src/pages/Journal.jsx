@@ -1,66 +1,50 @@
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 
-function Journal() {
-    const posts = [
-        {
-            date: "Oct 2025",
-            title: "The Architecture of Curation",
-            excerpt: "Exploring how spatial awareness defines the narrative of African contemporary art...",
-            category: "Theory"
-        },
-        {
-            date: "Sept 2025",
-            title: "Impact Report: Mombasa Education Initiative",
-            excerpt: "How the proceeds from the 'Sovereignty' exhibition are being utilized this semester...",
-            category: "Impact"
-        }
-    ];
+function Journal({ isAdmin }) {
+    const [entries, setEntries] = useState([]);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+    useEffect(() => {
+        fetch(`${API_URL}/api/journal`)
+            .then(res => res.json())
+            .then(data => setEntries(data))
+            .catch(err => console.error(err));
+    }, []);
+
+    const deleteEntry = async (id) => {
+        if (!window.confirm("Delete this reflection?")) return;
+        await fetch(`${API_URL}/api/journal/${id}`, { method: 'DELETE' });
+        setEntries(entries.filter(e => e._id !== id));
+    };
 
     return (
-        /* Change #2: Forced White Background */
-        <div className="min-h-screen bg-white text-black p-6 md:p-24 pb-48">
-            <div className="max-w-4xl mx-auto">
-                {/* Change #1: Letter spacing on header */}
-                <h2 className="project-title text-[10px] mb-20 border-b border-black/10 pb-4">
-                    Journal & Field Notes
-                </h2>
+        <div className="bg-white min-h-screen p-6 md:p-24">
+            <header className="mb-20">
+                <h1 className="text-5xl font-serif italic tracking-tighter mb-4">Field Notes</h1>
+                <p className="text-[10px] uppercase tracking-[0.5em] text-black/40">Observations on Art & Direction</p>
+            </header>
 
-                <div className="space-y-32">
-                    {posts.map((post, i) => (
-                        <motion.article
-                            key={i}
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            className="group cursor-pointer"
-                        >
-                            <div className="flex justify-between items-end mb-8">
-                                <span className="text-[9px] uppercase tracking-widest opacity-40 font-medium">
-                                    {post.date}
-                                </span>
-                                {/* Change #4: Category Tag with Orange border on hover */}
-                                <span className="text-[9px] uppercase tracking-widest px-3 py-1 border border-black/10 italic group-hover:border-myr-orange group-hover:text-myr-orange transition-colors">
-                                    {post.category}
-                                </span>
-                            </div>
-
-                            {/* Change #1: Spacing and Typography */}
-                            <h3 className="text-4xl md:text-6xl font-serif italic mb-6 leading-tight group-hover:text-myr-orange transition-colors duration-500">
-                                {post.title}
-                            </h3>
-
-                            <p className="text-lg font-light leading-relaxed opacity-60 max-w-2xl border-l border-black/5 pl-8">
-                                {post.excerpt}
-                            </p>
-
-                            {/* Change #4: Read Entry with Orange indicator */}
-                            <div className="mt-8 text-[10px] uppercase tracking-[0.4em] font-bold flex items-center gap-4 group-hover:gap-8 transition-all duration-500">
-                                <span className="text-black">Read Entry</span>
-                                <span className="h-[1px] w-8 bg-myr-orange"></span>
-                            </div>
-                        </motion.article>
-                    ))}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-24">
+                {entries.map(entry => (
+                    <article key={entry._id} className="group relative">
+                        <div className="aspect-[4/5] overflow-hidden bg-neutral-100 mb-8">
+                            <img src={entry.imageUrl} alt={entry.title} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex justify-between items-start mb-4">
+                            <span className="text-[9px] uppercase tracking-widest text-myr-orange font-bold">{entry.date}</span>
+                            {isAdmin && (
+                                <button onClick={() => deleteEntry(entry._id)} className="text-[9px] text-red-500 uppercase tracking-widest">[ Remove ]</button>
+                            )}
+                        </div>
+                        <h2 className="text-2xl font-serif italic mb-4">{entry.title}</h2>
+                        <p className="text-sm leading-relaxed text-black/70 mb-6 line-clamp-3">{entry.content}</p>
+                        {entry.externalLink && (
+                            <a href={entry.externalLink} target="_blank" rel="noreferrer" className="text-[9px] uppercase tracking-[0.3em] border-b border-black pb-1 hover:text-myr-orange hover:border-myr-orange transition-all">
+                                View Context →
+                            </a>
+                        )}
+                    </article>
+                ))}
             </div>
         </div>
     );
