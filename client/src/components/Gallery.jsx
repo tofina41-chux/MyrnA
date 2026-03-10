@@ -10,25 +10,21 @@ function Gallery({ isAdmin }) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     useEffect(() => {
+        setStatus("Waking up server..."); // Better for the user to know it's slow, not broken
         fetch('https://myrna-ms9b.onrender.com/api/projects')
-            .then(res => res.json())
-            .then(data => {
-                setProjects(data)
-                setStatus("Connected")
+            .then(res => {
+                if (!res.ok) throw new Error("Server response was not ok");
+                return res.json();
             })
-            .catch(() => setStatus("Offline ❌"))
-    }, [])
-
-    const deleteProject = async (id) => {
-        if (window.confirm("Delete this artwork from the archive?")) {
-            try {
-                await fetch(`https://myrna-ms9b.onrender.com/api/projects/${id}`, { method: 'DELETE' });
-                setProjects(projects.filter(p => p._id !== id));
-            } catch (err) {
-                alert("Failed to delete project");
-            }
-        }
-    };
+            .then(data => {
+                setProjects(data);
+                setStatus("Connected");
+            })
+            .catch((err) => {
+                console.error(err);
+                setStatus("Offline ❌ - Try refreshing in 30 seconds");
+            });
+    }, []);
 
     // Corrected Filter Logic: Combines Category AND Search
     const filteredProjects = projects.filter(p => {
