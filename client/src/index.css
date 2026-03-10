@@ -1,3 +1,7 @@
+/* 1. Fonts MUST be first */
+@import url('https://fonts.googleapis.com/css2?family=Tenor+Sans&family=Inter:wght@300;400;600&family=Cormorant+Garamond:ital,wght@1,300;1,500&display=swap');
+
+/* 2. Then Tailwind */
 @import "tailwindcss";
 
 @theme {
@@ -9,8 +13,6 @@
     --letter-spacing-tightest: -0.05em;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Tenor+Sans&family=Inter:wght@300;400;600&family=Cormorant+Garamond:ital,wght@1,300;1,500&display=swap');
-
 :root {
     background-color: white;
     color: black;
@@ -19,6 +21,7 @@
 /* Force clean white background across the app */
 body {
     font-family: 'Inter', sans-serif;
+    /* Note: @apply in v4 works best inside curly braces */
     @apply bg-white text-black;
 }
 
@@ -33,6 +36,5 @@ body {
 .custom-cursor {
     border-color: var(--color-myr-orange) !important;
     mix-blend-difference: normal !important;
-    /* Better visibility on white */
     background-color: rgba(255, 90, 0, 0.1);
 }

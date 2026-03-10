@@ -31,7 +31,10 @@ function Navbar({ isAdmin, setIsAdmin }) {
           {isAdmin && (
             <div className="flex items-center gap-6 pl-6 border-l border-black/10">
               <Link to="/add" className="text-myr-orange hover:italic transition-all">
-                [ + New ]
+                [ + Project ]
+              </Link>
+              <Link to="/add-journal" className="text-myr-orange hover:italic transition-all">
+                [ + Journal ]
               </Link>
               <button
                 onClick={handleLogout}
