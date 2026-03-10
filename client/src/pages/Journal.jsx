@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 function Journal({ isAdmin }) {
     const [entries, setEntries] = useState([]);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const API_URL = import.meta.env.VITE_API_URL || 'https://myrna-ms9b.onrender.com';
 
     useEffect(() => {
         fetch(`${API_URL}/api/journal`)
