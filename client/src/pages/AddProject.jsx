@@ -56,7 +56,7 @@ function AddProject() {
         if (!formData.imageUrl) return alert("Please upload a visual first.");
 
         try {
-            const response = await fetch('http://localhost:5000/api/projects', {
+            const response = await fetch('https://myrna-ms9b.onrender.com/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

@@ -5,7 +5,7 @@ const cors = require('cors');
 const Project = require('./models/Project');
 
 const app = express();
-app.use(cors());
+app.use(cors(origin: "https://myr-art-direction.vercel.app"));
 app.use(express.json());
 
 mongoose.connect(process.env.MONGO_URI)

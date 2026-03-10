@@ -10,7 +10,7 @@ function Gallery({ isAdmin }) {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/projects')
+        fetch('https://myrna-ms9b.onrender.com/api/projects')
             .then(res => res.json())
             .then(data => {
                 setProjects(data)
@@ -22,7 +22,7 @@ function Gallery({ isAdmin }) {
     const deleteProject = async (id) => {
         if (window.confirm("Delete this artwork from the archive?")) {
             try {
-                await fetch(`http://localhost:5000/api/projects/${id}`, { method: 'DELETE' });
+                await fetch(`https://myrna-ms9b.onrender.com/api/projects/${id}`, { method: 'DELETE' });
                 setProjects(projects.filter(p => p._id !== id));
             } catch (err) {
                 alert("Failed to delete project");
