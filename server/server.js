@@ -11,6 +11,35 @@ app.use(express.json());
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ Local MongoDB Connected"))
     .catch(err => console.log("❌ Local DB Error:", err));
+    // 1. Service Schema
+const serviceSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  price: String, // e.g., "Starting at $500" or "Upon Request"
+  category: String, // e.g., "Consultation", "Art Direction"
+});
+
+const Service = mongoose.model('Service', serviceSchema);
+
+// 2. Service Routes
+// GET all services
+app.get('/api/services', async (req, res) => {
+  const services = await Service.find();
+  res.json(services);
+});
+
+// POST a new service
+app.post('/api/services', async (req, res) => {
+  const newService = new Service(req.body);
+  await newService.save();
+  res.json(newService);
+});
+
+// DELETE a service
+app.delete('/api/services/:id', async (req, res) => {
+  await Service.findByIdAndDelete(req.params.id);
+  res.json({ message: "Service deleted" });
+});
 
 // --- ROUTES ---
 

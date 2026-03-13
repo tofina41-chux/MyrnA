@@ -10,6 +10,7 @@ import Journal from './pages/Journal.jsx';
 import AddProject from './pages/AddProject.jsx';
 import Login from './pages/Login.jsx';
 import AddJournal from './pages/AddJournal.jsx';
+import AddService from './pages/AddService';
 
 // Import Global Components
 import Navbar from './components/Navbar.jsx';
@@ -45,9 +46,8 @@ function App() {
             <Route path="/journal" element={<Journal />} />
             <Route path="/login" element={<Login setIsAdmin={setIsAdmin} />} />
             <Route path="/admin/journal" element={<ProtectedRoute><AddJournal /></ProtectedRoute>} />
-            <Route path="/add-journal" element={<ProtectedRoute><AddJournal /></ProtectedRoute>
-            }
-            />
+            <Route path="/add-journal" element={<ProtectedRoute><AddJournal /></ProtectedRoute>}/>
+            <Route path="/add-service" element={<AddService />} />
 
 
             {/* 🔐 Protected Admin Routes */}
