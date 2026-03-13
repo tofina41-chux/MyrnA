@@ -9,9 +9,12 @@ function Gallery({ isAdmin }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+    // Hardcoded live URL for stability
+    const API_BASE = 'https://myrna-ms9b.onrender.com/api';
+
     useEffect(() => {
-        setStatus("Waking up server..."); // Better for the user to know it's slow, not broken
-        fetch('https://myrna-ms9b.onrender.com/api/projects')
+        setStatus("Waking up server...");
+        fetch(`${API_BASE}/projects`)
             .then(res => {
                 if (!res.ok) throw new Error("Server response was not ok");
                 return res.json();
@@ -26,7 +29,27 @@ function Gallery({ isAdmin }) {
             });
     }, []);
 
-    // Corrected Filter Logic: Combines Category AND Search
+    // FIX #2: Working Delete Function
+    const deleteProject = async (id) => {
+        if (!window.confirm("Permanently remove this artwork from the live archive?")) return;
+        
+        try {
+            const response = await fetch(`${API_BASE}/projects/${id}`, { 
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                setProjects(projects.filter(p => p._id !== id));
+            } else {
+                alert("Failed to delete. Server might be sleeping.");
+            }
+        } catch (err) {
+            console.error("Delete Error:", err);
+            alert("Network error. Try again.");
+        }
+    };
+
     const filteredProjects = projects.filter(p => {
         const matchesCategory = activeFilter === "All" || p.category === activeFilter;
         const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -71,7 +94,7 @@ function Gallery({ isAdmin }) {
                         <button
                             onClick={() => {
                                 setIsSearchOpen(!isSearchOpen);
-                                if (isSearchOpen) setSearchTerm(''); // Clear search on close
+                                if (isSearchOpen) setSearchTerm('');
                             }}
                             className="ml-4 text-[10px] uppercase tracking-[0.4em] text-myr-orange font-bold hover:italic"
                         >
@@ -80,17 +103,19 @@ function Gallery({ isAdmin }) {
                     </div>
                 </div>
 
-                {/* ADMIN ACTION */}
+                {/* FIX #3: ADMIN ACTIONS (Project, Journal, and Services) */}
                 {isAdmin && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="mb-16 border-2 border-dashed border-myr-orange/20 p-12 text-center group hover:border-myr-orange transition-all"
-                    >
-                        <Link to="/add" className="text-[10px] tracking-[0.5em] uppercase font-bold block w-full h-full text-myr-orange">
-                            + Add New Project to Archive
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-16">
+                        <Link to="/add" className="border border-dashed border-myr-orange/40 p-6 text-center text-[9px] tracking-widest uppercase font-bold text-myr-orange hover:bg-myr-orange/5 transition-all">
+                            + New Project
                         </Link>
-                    </motion.div>
+                        <Link to="/add-journal" className="border border-dashed border-black/20 p-6 text-center text-[9px] tracking-widest uppercase font-bold text-black hover:bg-black/5 transition-all">
+                            + New Journal
+                        </Link>
+                        <Link to="/add-service" className="border border-dashed border-black/20 p-6 text-center text-[9px] tracking-widest uppercase font-bold text-black hover:bg-black/5 transition-all">
+                            + New Service
+                        </Link>
+                    </div>
                 )}
 
                 {/* THE GRID */}
@@ -104,6 +129,7 @@ function Gallery({ isAdmin }) {
                                 animate={{ opacity: 1 }}
                                 className="group relative flex flex-col"
                             >
+                                {/* FIX #1: Link to Detail Page */}
                                 <Link to={`/project/${project._id}`}>
                                     <div className="aspect-[3/4] bg-neutral-100 overflow-hidden mb-8 relative border border-black/5">
                                         <img
@@ -138,13 +164,12 @@ function Gallery({ isAdmin }) {
                         ))
                     ) : (
                         <div className="col-span-full py-20 text-center opacity-30 text-[10px] uppercase tracking-widest">
-                            No matching masterpieces found.
+                            {status === "Connected" ? "No matching masterpieces found." : status}
                         </div>
                     )}
                 </div>
             </main>
 
-            {/* Scrolling Footer with Orange Stroke */}
             <div className="mt-40 border-t border-black/10 pt-10 overflow-hidden">
                 {["Art Direction", "Curatorial Impact"].map((text) => (
                     <h2 key={text}

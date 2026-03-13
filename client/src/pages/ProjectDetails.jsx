@@ -7,13 +7,12 @@ function ProjectDetails() {
     const [project, setProject] = useState(null);
 
     useEffect(() => {
-        fetch(`http://localhost:5000/api/projects`)
-            .then(res => res.json())
-            .then(data => {
-                const found = data.find(p => p._id === id);
-                setProject(found);
-            });
-    }, [id]);
+    // Force the Render URL here too
+    fetch(`https://myrna-ms9b.onrender.com/api/projects/${id}`)
+        .then(res => res.json())
+        .then(data => setProject(data))
+        .catch(err => console.error(err));
+}, [id]);
 
     if (!project) return <div className="min-h-screen bg-white" />;
 
