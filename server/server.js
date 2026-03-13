@@ -5,55 +5,80 @@ const cors = require('cors');
 const Project = require('./models/Project');
 
 const app = express();
-app.use(cors(origin: "https://myr-art-direction.vercel.app"));
+
+// FIX: Corrected CORS syntax and opened it for mobile testing
+app.use(cors({
+    origin: '*', 
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
+// Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ Local MongoDB Connected"))
-    .catch(err => console.log("❌ Local DB Error:", err));
-    // 1. Service Schema
+    .then(() => console.log("✨ Global Cloud Database Connected"))
+    .catch(err => console.log("❌ DB Error:", err));
+
+// --- SERVICE MODEL & ROUTES ---
 const serviceSchema = new mongoose.Schema({
   title: String,
   description: String,
-  price: String, // e.g., "Starting at $500" or "Upon Request"
-  category: String, // e.g., "Consultation", "Art Direction"
+  price: String,
+  category: String,
 });
 
 const Service = mongoose.model('Service', serviceSchema);
 
-// 2. Service Routes
-// GET all services
 app.get('/api/services', async (req, res) => {
-  const services = await Service.find();
-  res.json(services);
+  try {
+    const services = await Service.find();
+    res.json(services);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// POST a new service
 app.post('/api/services', async (req, res) => {
-  const newService = new Service(req.body);
-  await newService.save();
-  res.json(newService);
+  try {
+    const newService = new Service(req.body);
+    await newService.save();
+    res.status(201).json(newService);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
-// DELETE a service
 app.delete('/api/services/:id', async (req, res) => {
-  await Service.findByIdAndDelete(req.params.id);
-  res.json({ message: "Service deleted" });
+  try {
+    await Service.findByIdAndDelete(req.params.id);
+    res.json({ message: "Service deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// --- ROUTES ---
-
-// 1. GET all projects
+// --- PROJECT ROUTES ---
 app.get('/api/projects', async (req, res) => {
     try {
-        const projects = await Project.find().sort({ createdAt: -1 }); // Newest first
+        const projects = await Project.find().sort({ createdAt: -1 });
         res.json(projects);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2. POST a new project
+// NEW: Single Project Detail Route (Fixes the "Blank Page" issue)
+app.get('/api/projects/:id', async (req, res) => {
+    try {
+        const project = await Project.findById(req.params.id);
+        if (!project) return res.status(404).json({ message: "Project not found" });
+        res.json(project);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/projects', async (req, res) => {
     try {
         const newProject = new Project(req.body);
@@ -64,20 +89,17 @@ app.post('/api/projects', async (req, res) => {
     }
 });
 
-// 3. DELETE a project (FIXED)
 app.delete('/api/projects/:id', async (req, res) => {
     try {
         const result = await Project.findByIdAndDelete(req.params.id);
-        if (!result) {
-            return res.status(404).json({ message: "Project not found" });
-        }
+        if (!result) return res.status(404).json({ message: "Project not found" });
         res.status(200).json({ message: "Project deleted successfully" });
     } catch (err) {
         res.status(500).json({ error: "Failed to delete" });
     }
 });
 
-// --- JOURNAL MODEL ---
+// --- JOURNAL MODEL & ROUTES ---
 const journalSchema = new mongoose.Schema({
     title: { type: String, required: true },
     date: { type: String, required: true },
@@ -89,72 +111,36 @@ const journalSchema = new mongoose.Schema({
 
 const Journal = mongoose.model('Journal', journalSchema);
 
-// --- JOURNAL ROUTES ---
-
-// 1. Get all journal entries (Public)
 app.get('/api/journal', async (req, res) => {
     try {
-        const entries = await Journal.find().sort({ createdAt: -1 }); // Newest first
+        const entries = await Journal.find().sort({ createdAt: -1 });
         res.json(entries);
     } catch (err) {
         res.status(500).json({ error: "Could not fetch the archive." });
     }
 });
 
-// 2. Post a new entry (Admin)
 app.post('/api/journal', async (req, res) => {
     try {
         const newEntry = new Journal(req.body);
         const savedEntry = await newEntry.save();
         res.status(201).json(savedEntry);
     } catch (err) {
-        res.status(400).json({ error: "Validation failed. Narrative required." });
+        res.status(400).json({ error: "Validation failed." });
     }
 });
 
-// 3. Delete an entry (Admin)
 app.delete('/api/journal/:id', async (req, res) => {
     try {
         await Journal.findByIdAndDelete(req.params.id);
-        res.json({ message: "Entry removed from history." });
+        res.json({ message: "Entry removed." });
     } catch (err) {
         res.status(500).json({ error: "Delete failed." });
     }
 });
 
-// --- SITE CONTENT MODEL (About/Services) ---
-const contentSchema = new mongoose.Schema({
-    slug: { type: String, required: true, unique: true }, // e.g., 'about' or 'services'
-    text: { type: String, required: true },
-    lastUpdated: { type: Date, default: Date.now }
-});
+// Root route to check if server is alive
+app.get('/', (req, res) => res.send('MYR API is Live and Running.'));
 
-const Content = mongoose.model('Content', contentSchema);
-
-// --- CONTENT ROUTES ---
-
-// 1. Get specific content (Public)
-app.get('/api/content/:slug', async (req, res) => {
-    try {
-        const content = await Content.findOne({ slug: req.params.slug });
-        res.json(content || { text: "Content under curation..." });
-    } catch (err) {
-        res.status(500).json({ error: "Fetch failed." });
-    }
-});
-
-// 2. Update content (Admin)
-app.put('/api/content/:slug', async (req, res) => {
-    try {
-        const updated = await Content.findOneAndUpdate(
-            { slug: req.params.slug },
-            { text: req.body.text, lastUpdated: Date.now() },
-            { upsert: true, new: true } // Creates it if it doesn't exist
-        );
-        res.json(updated);
-    } catch (err) {
-        res.status(500).json({ error: "Update failed." });
-    }
-});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

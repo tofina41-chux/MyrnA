@@ -1,50 +1,86 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 
 function Services({ isAdmin }) {
-    const [content, setContent] = useState("");
-    const [isEditing, setIsEditing] = useState(false);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const [services, setServices] = useState([]);
+    const [status, setStatus] = useState("Loading...");
+
+    // Hardcoded for stability on mobile
+    const API_URL = 'https://myrna-ms9b.onrender.com/api/services';
 
     useEffect(() => {
-        fetch(`${API_URL}/api/content/services`)
+        fetch(API_URL)
             .then(res => res.json())
-            .then(data => setContent(data.text));
+            .then(data => {
+                setServices(data);
+                setStatus("Connected");
+            })
+            .catch(() => setStatus("Offline"));
     }, []);
 
-    const handleSave = async () => {
-        await fetch(`${API_URL}/api/content/services`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: content })
-        });
-        setIsEditing(false);
+    const deleteService = async (id) => {
+        if (!window.confirm("Remove this service offering?")) return;
+        await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+        setServices(services.filter(s => s._id !== id));
     };
 
     return (
         <div className="p-12 md:p-24 bg-white min-h-screen">
-            <h1 className="text-4xl font-serif italic mb-12">Services</h1>
+            <header className="max-w-7xl mx-auto mb-20">
+                <h1 className="text-5xl md:text-7xl font-serif italic mb-4">Services</h1>
+                <p className="text-[10px] uppercase tracking-[0.5em] text-neutral-400">Collaborative Offerings & Expertise</p>
+            </header>
 
-            {isAdmin && (
-                <button
-                    onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                    className="mb-8 text-[9px] uppercase tracking-widest text-myr-orange border border-myr-orange px-3 py-1 hover:bg-myr-orange hover:text-white transition-all"
-                >
-                    {isEditing ? '[ Commit Changes ]' : '[ Edit Services ]'}
-                </button>
-            )}
+            <div className="max-w-5xl mx-auto space-y-24">
+                {services.length > 0 ? (
+                    services.map((service, index) => (
+                        <motion.div 
+                            key={service._id}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            className="group grid grid-cols-1 md:grid-cols-12 gap-8 border-b border-black/5 pb-16"
+                        >
+                            <div className="md:col-span-1 text-myr-orange font-mono text-xs opacity-50">
+                                0{index + 1}
+                            </div>
+                            
+                            <div className="md:col-span-7">
+                                <h2 className="text-2xl md:text-3xl mb-4 group-hover:italic transition-all">
+                                    {service.title}
+                                </h2>
+                                <p className="text-neutral-500 font-light leading-relaxed text-lg whitespace-pre-wrap">
+                                    {service.description}
+                                </p>
+                            </div>
 
-            {isEditing ? (
-                <textarea
-                    className="w-full h-96 border border-black/10 p-6 font-light text-lg leading-relaxed outline-none focus:border-myr-orange"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                />
-            ) : (
-                <div className="max-w-3xl whitespace-pre-wrap text-lg leading-relaxed font-light">
-                    {content}
-                </div>
-            )}
+                            <div className="md:col-span-4 md:text-right space-y-4">
+                                <div className="text-[10px] uppercase tracking-widest font-bold">
+                                    {service.category}
+                                </div>
+                                <div className="text-sm font-light italic text-neutral-400">
+                                    {service.price || "Price Upon Request"}
+                                </div>
+                                
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => deleteService(service._id)}
+                                        className="text-[9px] uppercase tracking-widest text-red-500 block md:ml-auto pt-4"
+                                    >
+                                        [ Remove Service ]
+                                    </button>
+                                )}
+                            </div>
+                        </motion.div>
+                    ))
+                ) : (
+                    <div className="text-center py-20 opacity-30 text-[10px] uppercase tracking-[0.5em]">
+                        {status === "Connected" ? "No services currently listed." : "Establishing Connection..."}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
+
 export default Services;
