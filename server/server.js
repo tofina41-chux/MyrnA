@@ -7,22 +7,32 @@ const path = require('path');
 const app = express();
 
 app.use(cors({ origin: '*' }));
-app.use(express.json()); // Essential to parse incoming JSON payloads
+app.use(express.json()); 
 
 const DATA_FILE = path.join(__dirname, 'projects.json');
 
-// Helper functions to read/write from local JSON file
+// Helper functions to safely read/write from local JSON file
 const readData = () => {
     try {
+        // Safe Check: If the file doesn't exist or is completely empty, initialize it instantly
+        if (!fs.existsSync(DATA_FILE) || fs.readFileSync(DATA_FILE, 'utf8').trim() === '') {
+            fs.writeFileSync(DATA_FILE, JSON.stringify([]), 'utf8');
+            return [];
+        }
         const data = fs.readFileSync(DATA_FILE, 'utf8');
         return JSON.parse(data);
     } catch (err) {
-        return [];
+        console.error("Data recovery fail-safe triggered:", err);
+        return []; // Always returns a clean array so the app never hits a 500 crash
     }
 };
 
 const writeData = (data) => {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+    try {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (err) {
+        console.error("Failed to write data:", err);
+    }
 };
 
 // --- ROUTES ---
@@ -44,19 +54,18 @@ app.get('/api/projects/:id', (req, res) => {
     res.json(project);
 });
 
-// 4. POST New Project (Accepts clean JSON data directly from the Cloudinary widget)
+// 4. POST New Project
 app.post('/api/projects', (req, res) => {
     try {
         const { title, category, location, description, imageUrl } = req.body;
 
-        // Validation to ensure the frontend passed the image URL from the widget
         if (!imageUrl) {
             return res.status(400).json({ error: "Please provide an image URL from Cloudinary" });
         }
 
         const projects = readData();
         const newProject = {
-            _id: Date.now().toString(), // Safe unique timestamp ID string
+            _id: Date.now().toString(), 
             title: title || "Untitled Masterpiece",
             category: category || "Curation",
             location: location || "Kenya",
