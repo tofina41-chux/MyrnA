@@ -3,22 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
 
 const app = express();
 
 app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(express.json()); // Essential to parse incoming JSON payloads
 
-// Cloudinary Configuration (Keep this in your backend .env!)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-const upload = multer({ dest: 'uploads/' });
 const DATA_FILE = path.join(__dirname, 'projects.json');
 
 // Helper functions to read/write from local JSON file
@@ -43,7 +33,6 @@ app.get('/', (req, res) => res.send('MYR File-Based API is Live.'));
 // 2. GET All Projects
 app.get('/api/projects', (req, res) => {
     const projects = readData();
-    // Return newest projects first
     res.json([...projects].reverse());
 });
 
@@ -55,27 +44,24 @@ app.get('/api/projects/:id', (req, res) => {
     res.json(project);
 });
 
-// 4. POST New Project (Uploads image to Cloudinary, stores text in JSON)
-app.post('/api/projects', upload.single('image'), async (req, res) => {
+// 4. POST New Project (Accepts clean JSON data directly from the Cloudinary widget)
+app.post('/api/projects', (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: "Please provide an image" });
+        const { title, category, location, description, imageUrl } = req.body;
 
-        // Upload physical file to Cloudinary permanent storage
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            folder: "myr_archive"
-        });
-
-        // Delete the temporary file from Render's disk space
-        fs.unlinkSync(req.file.path);
+        // Validation to ensure the frontend passed the image URL from the widget
+        if (!imageUrl) {
+            return res.status(400).json({ error: "Please provide an image URL from Cloudinary" });
+        }
 
         const projects = readData();
         const newProject = {
-            _id: Date.now().toString(), // Generate a unique ID string
-            title: req.body.title,
-            category: req.body.category,
-            location: req.body.location,
-            description: req.body.description,
-            imageUrl: result.secure_url, // Permanent Cloudinary Link
+            _id: Date.now().toString(), // Safe unique timestamp ID string
+            title: title || "Untitled Masterpiece",
+            category: category || "Curation",
+            location: location || "Kenya",
+            description: description || "",
+            imageUrl: imageUrl, 
             createdAt: new Date()
         };
 
@@ -84,8 +70,8 @@ app.post('/api/projects', upload.single('image'), async (req, res) => {
 
         res.status(201).json(newProject);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to save project" });
+        console.error("Server Write Error:", err);
+        res.status(500).json({ error: "Failed to save project to local archive" });
     }
 });
 
@@ -102,4 +88,4 @@ app.delete('/api/projects/:id', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(` File-Based Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 File-Based Server running on port ${PORT}`));
