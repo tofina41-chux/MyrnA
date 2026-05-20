@@ -1,146 +1,105 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-const Project = require('./models/Project');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 
 const app = express();
 
-// FIX: Corrected CORS syntax and opened it for mobile testing
-app.use(cors({
-    origin: '*', 
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✨ Global Cloud Database Connected"))
-    .catch(err => console.log("❌ DB Error:", err));
-
-// --- SERVICE MODEL & ROUTES ---
-const serviceSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  price: String,
-  category: String,
+// Cloudinary Configuration (Keep this in your backend .env!)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const Service = mongoose.model('Service', serviceSchema);
+const upload = multer({ dest: 'uploads/' });
+const DATA_FILE = path.join(__dirname, 'projects.json');
 
-app.get('/api/services', async (req, res) => {
-  try {
-    const services = await Service.find();
-    res.json(services);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/services', async (req, res) => {
-  try {
-    const newService = new Service(req.body);
-    await newService.save();
-    res.status(201).json(newService);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-app.delete('/api/services/:id', async (req, res) => {
-  try {
-    await Service.findByIdAndDelete(req.params.id);
-    res.json({ message: "Service deleted" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- PROJECT ROUTES ---
-app.get('/api/projects', async (req, res) => {
+// Helper functions to read/write from local JSON file
+const readData = () => {
     try {
-        const projects = await Project.find().sort({ createdAt: -1 });
-        res.json(projects);
+        const data = fs.readFileSync(DATA_FILE, 'utf8');
+        return JSON.parse(data);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return [];
+    }
+};
+
+const writeData = (data) => {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+};
+
+// --- ROUTES ---
+
+// 1. GET Root Status
+app.get('/', (req, res) => res.send('MYR File-Based API is Live.'));
+
+// 2. GET All Projects
+app.get('/api/projects', (req, res) => {
+    const projects = readData();
+    // Return newest projects first
+    res.json([...projects].reverse());
+});
+
+// 3. GET Single Project Detail
+app.get('/api/projects/:id', (req, res) => {
+    const projects = readData();
+    const project = projects.find(p => p._id === req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    res.json(project);
+});
+
+// 4. POST New Project (Uploads image to Cloudinary, stores text in JSON)
+app.post('/api/projects', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: "Please provide an image" });
+
+        // Upload physical file to Cloudinary permanent storage
+        const result = await cloudinary.uploader.upload(req.file.path, {
+            folder: "myr_archive"
+        });
+
+        // Delete the temporary file from Render's disk space
+        fs.unlinkSync(req.file.path);
+
+        const projects = readData();
+        const newProject = {
+            _id: Date.now().toString(), // Generate a unique ID string
+            title: req.body.title,
+            category: req.body.category,
+            location: req.body.location,
+            description: req.body.description,
+            imageUrl: result.secure_url, // Permanent Cloudinary Link
+            createdAt: new Date()
+        };
+
+        projects.push(newProject);
+        writeData(projects);
+
+        res.status(201).json(newProject);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to save project" });
     }
 });
 
-// NEW: Single Project Detail Route (Fixes the "Blank Page" issue)
-app.get('/api/projects/:id', async (req, res) => {
-    try {
-        const project = await Project.findById(req.params.id);
-        if (!project) return res.status(404).json({ message: "Project not found" });
-        res.json(project);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// 5. DELETE Project
+app.delete('/api/projects/:id', (req, res) => {
+    let projects = readData();
+    const projectExists = projects.some(p => p._id === req.params.id);
+    
+    if (!projectExists) return res.status(404).json({ message: "Project not found" });
+
+    projects = projects.filter(p => p._id !== req.params.id);
+    writeData(projects);
+    res.json({ message: "Removed successfully from archive" });
 });
-
-app.post('/api/projects', async (req, res) => {
-    try {
-        const newProject = new Project(req.body);
-        const savedProject = await newProject.save();
-        res.status(201).json(savedProject);
-    } catch (err) {
-        res.status(400).json({ error: err.message });
-    }
-});
-
-app.delete('/api/projects/:id', async (req, res) => {
-    try {
-        const result = await Project.findByIdAndDelete(req.params.id);
-        if (!result) return res.status(404).json({ message: "Project not found" });
-        res.status(200).json({ message: "Project deleted successfully" });
-    } catch (err) {
-        res.status(500).json({ error: "Failed to delete" });
-    }
-});
-
-// --- JOURNAL MODEL & ROUTES ---
-const journalSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    date: { type: String, required: true },
-    content: { type: String, required: true },
-    imageUrl: { type: String, required: true },
-    externalLink: { type: String },
-    createdAt: { type: Date, default: Date.now }
-});
-
-const Journal = mongoose.model('Journal', journalSchema);
-
-app.get('/api/journal', async (req, res) => {
-    try {
-        const entries = await Journal.find().sort({ createdAt: -1 });
-        res.json(entries);
-    } catch (err) {
-        res.status(500).json({ error: "Could not fetch the archive." });
-    }
-});
-
-app.post('/api/journal', async (req, res) => {
-    try {
-        const newEntry = new Journal(req.body);
-        const savedEntry = await newEntry.save();
-        res.status(201).json(savedEntry);
-    } catch (err) {
-        res.status(400).json({ error: "Validation failed." });
-    }
-});
-
-app.delete('/api/journal/:id', async (req, res) => {
-    try {
-        await Journal.findByIdAndDelete(req.params.id);
-        res.json({ message: "Entry removed." });
-    } catch (err) {
-        res.status(500).json({ error: "Delete failed." });
-    }
-});
-
-// Root route to check if server is alive
-app.get('/', (req, res) => res.send('MYR API is Live and Running.'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(` File-Based Server running on port ${PORT}`));
