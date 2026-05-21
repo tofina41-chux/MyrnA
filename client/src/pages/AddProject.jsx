@@ -27,7 +27,7 @@ function AddProject() {
                     palette: {
                         window: "#FFFFFF",
                         sourceBg: "#FFFFFF",
-                        windowBorder: "#FF5F1F", // MYR Orange border for the widget
+                        windowBorder: "#FF5F1F", 
                         tabIcon: "#FF5F1F",
                         inactiveTabIcon: "#000000",
                         menuIcons: "#FF5F1F",
@@ -44,6 +44,7 @@ function AddProject() {
             },
             (error, result) => {
                 if (!error && result && result.event === "success") {
+                    // FIX #1: Use functional update state so it never drops other inputs
                     setFormData(prev => ({ ...prev, imageUrl: result.info.secure_url }));
                 }
             }
@@ -56,25 +57,37 @@ function AddProject() {
         if (!formData.imageUrl) return alert("Please upload a visual first.");
 
         try {
+            // Send the raw JSON state payload matching your database-free setup
             const response = await fetch('https://myrna-ms9b.onrender.com/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
+            
             if (response.ok) {
                 alert("Masterpiece Archived. ✨");
-                window.location.href = "/admin";
+                window.location.href = "/";
+            } else {
+                const errData = await response.json();
+                alert(`Server Error: ${errData.error || "Failed to save"}`);
             }
         } catch (err) {
             console.error("Save Error:", err);
+            alert("Network error. Make sure your server has finished building on Render!");
         }
     };
 
+    // FIX #2: Clean universal tracking handler for inputs
+    const handleChange = (field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
     return (
-        /* Change #2: Forced White Background */
         <div className="min-h-screen bg-white p-12 pb-40">
             <div className="max-w-2xl mx-auto">
-                {/* Change #1: Wide spacing font */}
                 <h2 className="project-title text-2xl mb-12 border-b border-black/5 pb-6 text-black italic">
                     Add to Archive
                 </h2>
@@ -88,7 +101,6 @@ function AddProject() {
                         <div className="border border-dashed border-black/10 p-2 text-center bg-neutral-50 hover:bg-white hover:border-myr-orange transition-all duration-500">
                             {formData.imageUrl ? (
                                 <div className="relative p-4">
-                                    {/* Change #3: No grayscale on preview */}
                                     <img
                                         src={formData.imageUrl}
                                         alt="Preview"
@@ -96,7 +108,7 @@ function AddProject() {
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => setFormData({ ...formData, imageUrl: '' })}
+                                        onClick={() => handleChange('imageUrl', '')}
                                         className="mt-6 text-[9px] text-red-500 uppercase tracking-widest border-b border-red-500/20 hover:border-red-500 transition-all"
                                     >
                                         [ Remove & Replace ]
@@ -111,7 +123,8 @@ function AddProject() {
                                     <span className="block text-3xl mb-4 group-hover:scale-125 transition-transform">+</span>
                                     Initiate Upload
                                 </button>
-                            )}
+                            )
+                        )}
                         </div>
                     </div>
 
@@ -120,8 +133,9 @@ function AddProject() {
                         <input
                             type="text"
                             placeholder="PROJECT TITLE"
+                            value={formData.title}
                             className="w-full border-b border-black/10 bg-transparent py-4 focus:border-myr-orange outline-none text-black text-2xl font-serif italic tracking-tighter transition-all placeholder:opacity-20"
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            onChange={(e) => handleChange('title', e.target.value)}
                             required
                         />
 
@@ -129,8 +143,9 @@ function AddProject() {
                             <div className="flex flex-col">
                                 <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-2 font-bold">Category</label>
                                 <select
+                                    value={formData.category}
                                     className="border-b border-black/10 bg-transparent py-2 outline-none text-black text-[10px] uppercase tracking-widest cursor-pointer focus:border-myr-orange transition-colors"
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                    onChange={(e) => handleChange('category', e.target.value)}
                                 >
                                     <option value="Curation">Curation</option>
                                     <option value="Strategic Art Direction">Strategic Art Direction</option>
@@ -142,8 +157,9 @@ function AddProject() {
                                 <input
                                     type="text"
                                     placeholder="E.G. MOMBASA"
+                                    value={formData.location}
                                     className="border-b border-black/10 bg-transparent py-2 outline-none text-black text-[10px] uppercase tracking-widest focus:border-myr-orange transition-colors placeholder:opacity-30"
-                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                    onChange={(e) => handleChange('location', e.target.value)}
                                 />
                             </div>
                         </div>
@@ -152,14 +168,14 @@ function AddProject() {
                             <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-4 font-bold">Narrative</label>
                             <textarea
                                 placeholder="THE STORY BEHIND THE IMPACT..."
+                                value={formData.description}
                                 className="w-full border border-black/5 bg-neutral-50/30 p-8 h-48 outline-none focus:border-myr-orange text-black font-light leading-relaxed text-sm placeholder:opacity-30"
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                onChange={(e) => handleChange('description', e.target.value)}
                                 required
                             ></textarea>
                         </div>
                     </div>
 
-                    {/* Change #4: Main button in MYR Orange */}
                     <button
                         type="submit"
                         className="w-full bg-myr-orange text-white py-8 text-[11px] uppercase tracking-[0.6em] font-bold hover:bg-black transition-all duration-500 mt-12 shadow-lg shadow-myr-orange/10"
