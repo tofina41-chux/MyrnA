@@ -1,59 +1,73 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
+const { Pool } = require('pg');
 
 const app = express();
 
 app.use(cors({ origin: '*' }));
-app.use(express.json()); 
+app.use(express.json());
 
-const DATA_FILE = path.join(__dirname, 'projects.json');
+// Connect to Supabase using the connection string from your .env file
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 
-// Helper functions to safely read/write from local JSON file
-const readData = () => {
+// Automatically create the projects table if it doesn't exist in Supabase yet
+const initDB = async () => {
     try {
-        if (!fs.existsSync(DATA_FILE)) {
-            return [];
-        }
-        const data = fs.readFileSync(DATA_FILE, 'utf8');
-        return data ? JSON.parse(data) : [];
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS projects (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                category TEXT NOT NULL,
+                location TEXT NOT NULL,
+                description TEXT,
+                image_url TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log("✅ Supabase permanent table is ready.");
     } catch (err) {
-        console.error("Fail-safe read:", err);
-        return [];
+        console.error("❌ Database initialization failed:", err);
     }
 };
-
-const writeData = (data) => {
-    try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) {
-        console.error("Failed to write data:", err);
-    }
-};
+initDB();
 
 // --- ROUTES ---
 
 // 1. GET Root Status
-app.get('/', (req, res) => res.send('MYR File-Based API is Live.'));
+app.get('/', (req, res) => res.send('MYR Supabase-Backed API is Live.'));
 
-// 2. GET All Projects
-app.get('/api/projects', (req, res) => {
-    const projects = readData();
-    res.json([...projects].reverse());
+// 2. GET All Projects (Newest first)
+app.get('/api/projects', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects ORDER BY id DESC');
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch archive items" });
+    }
 });
 
 // 3. GET Single Project Detail
-app.get('/api/projects/:id', (req, res) => {
-    const projects = readData();
-    const project = projects.find(p => p._id === req.params.id);
-    if (!project) return res.status(404).json({ message: "Project not found" });
-    res.json(project);
+app.get('/api/projects/:id', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects WHERE id = $1',
+            [req.params.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: "Project not found" });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Error reading project" });
+    }
 });
 
-// 4. POST New Project
-app.post('/api/projects', (req, res) => {
+// 4. POST New Project (Inserts directly into your permanent cloud database)
+app.post('/api/projects', async (req, res) => {
     try {
         const { title, category, location, description, imageUrl } = req.body;
 
@@ -61,38 +75,38 @@ app.post('/api/projects', (req, res) => {
             return res.status(400).json({ error: "Please provide an image URL from Cloudinary" });
         }
 
-        const projects = readData();
-        const newProject = {
-            _id: Date.now().toString(), 
-            title: title || "Untitled Masterpiece",
-            category: category || "Curation",
-            location: location || "Kenya",
-            description: description || "",
-            imageUrl: imageUrl, 
-            createdAt: new Date()
-        };
+        const queryText = `
+            INSERT INTO projects (title, category, location, description, image_url)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt"
+        `;
+        const values = [
+            title || "Untitled Masterpiece",
+            category || "Curation",
+            location || "Kenya",
+            description || "",
+            imageUrl
+        ];
 
-        projects.push(newProject);
-        writeData(projects);
-
-        res.status(201).json(newProject);
+        const result = await pool.query(queryText, values);
+        res.status(201).json(result.rows[0]);
     } catch (err) {
-        console.error("Server Write Error:", err);
-        res.status(500).json({ error: "Failed to save project to local archive" });
+        console.error("Database Write Error:", err);
+        res.status(500).json({ error: "Failed to save project permanently to Supabase" });
     }
 });
 
 // 5. DELETE Project
-app.delete('/api/projects/:id', (req, res) => {
-    let projects = readData();
-    const projectExists = projects.some(p => p._id === req.params.id);
-    
-    if (!projectExists) return res.status(404).json({ message: "Project not found" });
-
-    projects = projects.filter(p => p._id !== req.params.id);
-    writeData(projects);
-    res.json({ message: "Removed successfully from archive" });
+app.delete('/api/projects/:id', async (req, res) => {
+    try {
+        const result = await pool.query('DELETE FROM projects WHERE id = $1 RETURNING *', [req.params.id]);
+        if (result.rows.length === 0) return res.status(404).json({ message: "Project not found" });
+        res.json({ message: "Removed successfully from permanent archive" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to delete item" });
+    }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 File-Based Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Database Server running on port ${PORT}`));
