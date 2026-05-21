@@ -14,16 +14,14 @@ const DATA_FILE = path.join(__dirname, 'projects.json');
 // Helper functions to safely read/write from local JSON file
 const readData = () => {
     try {
-        // Safe Check: If the file doesn't exist or is completely empty, initialize it instantly
-        if (!fs.existsSync(DATA_FILE) || fs.readFileSync(DATA_FILE, 'utf8').trim() === '') {
-            fs.writeFileSync(DATA_FILE, JSON.stringify([]), 'utf8');
+        if (!fs.existsSync(DATA_FILE)) {
             return [];
         }
         const data = fs.readFileSync(DATA_FILE, 'utf8');
-        return JSON.parse(data);
+        return data ? JSON.parse(data) : [];
     } catch (err) {
-        console.error("Data recovery fail-safe triggered:", err);
-        return []; // Always returns a clean array so the app never hits a 500 crash
+        console.error("Fail-safe read:", err);
+        return [];
     }
 };
 
