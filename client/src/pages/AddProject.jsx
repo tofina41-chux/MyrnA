@@ -124,7 +124,7 @@ function AddProject() {
                                     Initiate Upload
                                 </button>
                             )
-                        )}
+                        }
                         </div>
                     </div>
 
