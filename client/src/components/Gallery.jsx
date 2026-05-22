@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import API_BASE_URL from '../api.js'; // Centralized API URL for easy maintenance
 
 function Gallery({ isAdmin }) {
     const [projects, setProjects] = useState([])
@@ -9,12 +10,9 @@ function Gallery({ isAdmin }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-    // Hardcoded live URL for stability
-    const API_BASE = 'https://myrna-ms9b.onrender.com/api';
-
     useEffect(() => {
         setStatus("Waking up server...");
-        fetch(`${API_BASE}/projects`)
+        fetch(`${API_BASE_URL}/api/projects`)
             .then(res => {
                 if (!res.ok) throw new Error("Server response was not ok");
                 return res.json();
@@ -29,18 +27,19 @@ function Gallery({ isAdmin }) {
             });
     }, []);
 
-    // FIX #2: Working Delete Function
+    // Working Delete Function aligned to SQL ID structures
     const deleteProject = async (id) => {
         if (!window.confirm("Permanently remove this artwork from the live archive?")) return;
         
         try {
-            const response = await fetch(`${API_BASE}/projects/${id}`, { 
+            const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, { 
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' }
             });
 
             if (response.ok) {
-                setProjects(projects.filter(p => p._id !== id));
+                // ✅ Changed from p._id to p.id
+                setProjects(projects.filter(p => p.id !== id));
             } else {
                 alert("Failed to delete. Server might be sleeping.");
             }
@@ -52,7 +51,7 @@ function Gallery({ isAdmin }) {
 
     const filteredProjects = projects.filter(p => {
         const matchesCategory = activeFilter === "All" || p.category === activeFilter;
-        const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = p.title?.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesCategory && matchesSearch;
     });
 
@@ -103,7 +102,7 @@ function Gallery({ isAdmin }) {
                     </div>
                 </div>
 
-                {/* FIX #3: ADMIN ACTIONS (Project, Journal, and Services) */}
+                {/* ADMIN ACTIONS */}
                 {isAdmin && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-16">
                         <Link to="/add" className="border border-dashed border-myr-orange/40 p-6 text-center text-[9px] tracking-widest uppercase font-bold text-myr-orange hover:bg-myr-orange/5 transition-all">
@@ -123,17 +122,18 @@ function Gallery({ isAdmin }) {
                     {filteredProjects.length > 0 ? (
                         filteredProjects.map((project) => (
                             <motion.div
-                                key={project._id}
+                                key={project.id || project._id} // ✅ Fallback key handler
                                 layout
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 className="group relative flex flex-col"
                             >
-                                {/* FIX #1: Link to Detail Page */}
-                                <Link to={`/project/${project._id}`}>
+                                {/* ✅ Aligned to handle standard PostgreSQL ID */}
+                                <Link to={`/project/${project.id || project._id}`}>
                                     <div className="aspect-[3/4] bg-neutral-100 overflow-hidden mb-8 relative border border-black/5">
                                         <img
-                                            src={project.imageUrl}
+                                            // ✅ Fallback support for snake_case and camelCase field layouts
+                                            src={project.image_url || project.imageUrl}
                                             alt={project.title}
                                             className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                                         />
@@ -153,7 +153,7 @@ function Gallery({ isAdmin }) {
 
                                     {isAdmin && (
                                         <button
-                                            onClick={() => deleteProject(project._id)}
+                                            onClick={() => deleteProject(project.id || project._id)}
                                             className="mt-4 text-[9px] text-red-500 uppercase tracking-widest hover:bg-red-500 hover:text-white border border-red-500/20 px-3 py-1 transition-all"
                                         >
                                             [ Remove from Archive ]

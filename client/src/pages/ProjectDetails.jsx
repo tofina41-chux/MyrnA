@@ -1,26 +1,44 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import API_BASE_URL from '../api.js';
 
 function ProjectDetails() {
     const { id } = useParams();
     const [project, setProject] = useState(null);
+    const [status, setStatus] = useState('Loading project...');
 
     useEffect(() => {
-    // Force the Render URL here too
-    fetch(`https://myrna-ms9b.onrender.com/api/projects/${id}`)
-        .then(res => res.json())
-        .then(data => setProject(data))
-        .catch(err => console.error(err));
-}, [id]);
+        setStatus('Loading project...');
+        fetch(`${API_BASE_URL}/api/projects/${id}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Project not found');
+                return res.json();
+            })
+            .then(data => {
+                setProject(data);
+                setStatus('');
+            })
+            .catch(err => {
+                console.error(err);
+                setStatus('Unable to load project. Try again later.');
+            });
+    }, [id]);
 
-    if (!project) return <div className="min-h-screen bg-white" />;
+    if (!project) {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center text-sm text-neutral-500">
+                {status}
+            </div>
+        );
+    }
+
+    const imageSource = project.imageUrl || project.image_url;
 
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            /* Change #2: Forced White Background */
             className="min-h-screen bg-white text-black p-6 md:p-20"
         >
             <Link to="/" className="text-[10px] uppercase tracking-[0.5em] mb-20 block hover:text-myr-orange transition-colors">
@@ -32,11 +50,10 @@ function ProjectDetails() {
                 <motion.div
                     initial={{ y: 20 }}
                     animate={{ y: 0 }}
-                    className="aspect-[3/4] overflow-hidden bg-neutral-100 border border-black/5"
+                    className="aspect-[4/3] md:aspect-[5/3] overflow-hidden bg-neutral-100 border border-black/5 shadow-lg"
                 >
-                    {/* Change #3: Grayscale removed */}
                     <img
-                        src={project.imageUrl}
+                        src={imageSource}
                         className="w-full h-full object-cover transition-transform duration-[2000ms] hover:scale-105"
                         alt={project.title}
                     />
@@ -44,7 +61,9 @@ function ProjectDetails() {
 
                 {/* Narrative Text */}
                 <div className="flex flex-col justify-center max-w-lg">
-                    {/* Change #4: Category in Orange hint */}
+                    <p className="text-[9px] uppercase tracking-[0.4em] text-myr-orange mb-3 font-bold">
+                        Impact Story
+                    </p>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-myr-orange mb-4 font-bold">
                         {project.category} — {project.location}
                     </p>

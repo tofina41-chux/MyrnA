@@ -12,6 +12,11 @@ function AddJournal() {
     });
 
     const handleUpload = () => {
+        if (!window.cloudinary) {
+            alert("Cloudinary script not found. Check index.html and network access.");
+            return;
+        }
+
         const myWidget = window.cloudinary.createUploadWidget(
             {
                 cloudName: 'djmjge5xu',

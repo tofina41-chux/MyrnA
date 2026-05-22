@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import API_BASE_URL from '../api.js'; // Adjust the dots based on which folder you are in
 
 function AddProject() {
     const [formData, setFormData] = useState({
@@ -57,8 +58,8 @@ function AddProject() {
         if (!formData.imageUrl) return alert("Please upload a visual first.");
 
         try {
-            // Send the raw JSON state payload matching your database-free setup
-            const response = await fetch('https://myrna-ms9b.onrender.com/api/projects', {
+            // ✅ Fixed: Using backticks handles the dynamic variable perfectly
+            const response = await fetch(`${API_BASE_URL}/api/projects`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

@@ -28,7 +28,7 @@ function Journal({ isAdmin }) {
                 {entries.map(entry => (
                     <article key={entry._id} className="group relative">
                         <div className="aspect-[4/5] overflow-hidden bg-neutral-100 mb-8">
-                            <img src={entry.imageUrl} alt={entry.title} className="w-full h-full object-cover" />
+                            <img src={entry.imageUrl || entry.image_url} alt={entry.title} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex justify-between items-start mb-4">
                             <span className="text-[9px] uppercase tracking-widest text-myr-orange font-bold">{entry.date}</span>
