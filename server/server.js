@@ -1,22 +1,32 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Connect to Supabase using the connection string from your .env file
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
+// Resilient DB setup: use Postgres when DATABASE_URL is present and working,
+// otherwise fall back to a local JSON file (`projects.json`). This prevents
+// the frontend from receiving 500 errors when the DB service is unavailable.
+let pool = null;
+let useDb = false;
+async function initDB() {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+        console.warn('DATABASE_URL not set — using local JSON fallback');
+        useDb = false;
+        return;
+    }
 
-// Automatically create the projects table if it doesn't exist in Supabase yet
-const initDB = async () => {
     try {
+        const { Pool } = require('pg');
+        pool = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
+
+        // Try a simple query to validate the connection and create table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS projects (
                 id SERIAL PRIMARY KEY,
@@ -28,83 +38,157 @@ const initDB = async () => {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log("✅ Supabase permanent table is ready.");
+
+        useDb = true;
+        console.log('✅ Database available — using Postgres for projects.');
     } catch (err) {
-        console.error("❌ Database initialization failed:", err);
+        console.error('❌ Database initialization failed — falling back to JSON:', err.message || err);
+        useDb = false;
+        pool = null;
     }
-};
+}
+
 initDB();
 
 // --- ROUTES ---
 
 // 1. GET Root Status
-app.get('/', (req, res) => res.send('MYR Supabase-Backed API is Live.'));
+app.get('/', (req, res) => res.send('MYR API is Live.'));
 
 // 2. GET All Projects (Newest first)
 app.get('/api/projects', async (req, res) => {
+    if (useDb && pool) {
+        try {
+            const result = await pool.query('SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects ORDER BY id DESC');
+            return res.json(result.rows);
+        } catch (err) {
+            console.error('DB read error:', err);
+            // Fallthrough to JSON fallback
+        }
+    }
+
+    // JSON fallback
     try {
-        const result = await pool.query('SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects ORDER BY id DESC');
-        res.json(result.rows);
+        const file = path.join(__dirname, 'projects.json');
+        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        return res.json(data.reverse());
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to fetch archive items" });
+        console.error('JSON fallback read error:', err);
+        return res.status(500).json({ error: 'Failed to fetch archive items' });
     }
 });
 
 // 3. GET Single Project Detail
 app.get('/api/projects/:id', async (req, res) => {
+    const id = req.params.id;
+    if (useDb && pool) {
+        try {
+            const result = await pool.query(
+                'SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects WHERE id = $1',
+                [id]
+            );
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Project not found' });
+            return res.json(result.rows[0]);
+        } catch (err) {
+            console.error('DB read error (single):', err);
+            // fallthrough to JSON
+        }
+    }
+
     try {
-        const result = await pool.query(
-            'SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects WHERE id = $1',
-            [req.params.id]
-        );
-        if (result.rows.length === 0) return res.status(404).json({ message: "Project not found" });
-        res.json(result.rows[0]);
+        const file = path.join(__dirname, 'projects.json');
+        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        const found = data.find(p => String(p._id || p.id) === String(id));
+        if (!found) return res.status(404).json({ message: 'Project not found' });
+        return res.json(found);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Error reading project" });
+        console.error('JSON fallback read error (single):', err);
+        return res.status(500).json({ error: 'Error reading project' });
     }
 });
 
 // 4. POST New Project (Inserts directly into your permanent cloud database)
 app.post('/api/projects', async (req, res) => {
-    try {
-        const { title, category, location, description, imageUrl } = req.body;
+    const { title, category, location, description, imageUrl } = req.body;
 
-        if (!imageUrl) {
-            return res.status(400).json({ error: "Please provide an image URL from Cloudinary" });
+    if (!imageUrl) {
+        return res.status(400).json({ error: 'Please provide an image URL from Cloudinary' });
+    }
+
+    if (useDb && pool) {
+        try {
+            const queryText = `
+                INSERT INTO projects (title, category, location, description, image_url)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt"
+            `;
+            const values = [
+                title || 'Untitled Masterpiece',
+                category || 'Curation',
+                location || 'Kenya',
+                description || '',
+                imageUrl
+            ];
+            const result = await pool.query(queryText, values);
+            return res.status(201).json(result.rows[0]);
+        } catch (err) {
+            console.error('DB write error:', err);
+            // fallthrough to JSON fallback
         }
+    }
 
-        const queryText = `
-            INSERT INTO projects (title, category, location, description, image_url)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt"
-        `;
-        const values = [
-            title || "Untitled Masterpiece",
-            category || "Curation",
-            location || "Kenya",
-            description || "",
-            imageUrl
-        ];
-
-        const result = await pool.query(queryText, values);
-        res.status(201).json(result.rows[0]);
+    // JSON fallback: append to projects.json (best-effort)
+    try {
+        const file = path.join(__dirname, 'projects.json');
+        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        const maxId = data.reduce((m, p) => Math.max(m, Number(p._id || p.id || 0)), 0);
+        const newItem = {
+            _id: maxId + 1,
+            title: title || 'Untitled Masterpiece',
+            category: category || 'Curation',
+            location: location || 'Kenya',
+            description: description || '',
+            imageUrl: imageUrl,
+            createdAt: new Date().toISOString()
+        };
+        data.push(newItem);
+        try {
+            fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+        } catch (writeErr) {
+            console.warn('Could not persist to projects.json (write failed):', writeErr.message || writeErr);
+        }
+        return res.status(201).json(newItem);
     } catch (err) {
-        console.error("Database Write Error:", err);
-        res.status(500).json({ error: "Failed to save project permanently to Supabase" });
+        console.error('JSON fallback write error:', err);
+        return res.status(500).json({ error: 'Failed to save project' });
     }
 });
 
 // 5. DELETE Project
 app.delete('/api/projects/:id', async (req, res) => {
+    const id = req.params.id;
+    if (useDb && pool) {
+        try {
+            const result = await pool.query('DELETE FROM projects WHERE id = $1 RETURNING *', [id]);
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Project not found' });
+            return res.json({ message: 'Removed successfully from permanent archive' });
+        } catch (err) {
+            console.error('DB delete error:', err);
+            // fallthrough to JSON
+        }
+    }
+
     try {
-        const result = await pool.query('DELETE FROM projects WHERE id = $1 RETURNING *', [req.params.id]);
-        if (result.rows.length === 0) return res.status(404).json({ message: "Project not found" });
-        res.json({ message: "Removed successfully from permanent archive" });
+        const file = path.join(__dirname, 'projects.json');
+        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        const idx = data.findIndex(p => String(p._id || p.id) === String(id));
+        if (idx === -1) return res.status(404).json({ message: 'Project not found' });
+        data.splice(idx, 1);
+        try { fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8'); } catch (w) { console.warn('Could not persist delete to projects.json:', w.message || w); }
+        return res.json({ message: 'Removed successfully from fallback archive' });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to delete item" });
+        console.error('JSON fallback delete error:', err);
+        return res.status(500).json({ error: 'Failed to delete item' });
     }
 });
 
