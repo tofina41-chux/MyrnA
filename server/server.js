@@ -293,9 +293,13 @@ app.get('/api/services', async (req, res) => {
 
 // Create a new service offering
 app.post('/api/services', async (req, res) => {
-    const { title, description, price, type } = req.body;
+    // Destructure both variations defensively so it matches whatever the frontend sends
+    const { title, description, price, type, category } = req.body;
+    
+    // Choose whichever field contains the data
+    const serviceType = type || category || 'Consultation';
 
-    if (!title || !description || !price || !type) {
+    if (!title || !description || !price) {
         return res.status(400).json({ error: 'Please provide all service offering details.' });
     }
 
@@ -306,7 +310,7 @@ app.post('/api/services', async (req, res) => {
                 VALUES ($1, $2, $3, $4)
                 RETURNING id AS "_id", id, title, description, price, type, created_at AS "createdAt"
             `;
-            const values = [title, description, price, type];
+            const values = [title, description, price, serviceType];
             const result = await pool.query(queryText, values);
             return res.status(201).json(result.rows[0]);
         } catch (err) {
@@ -326,7 +330,7 @@ app.post('/api/services', async (req, res) => {
             title,
             description,
             price,
-            type,
+            type: serviceType,
             createdAt: new Date().toISOString()
         };
         data.push(newItem);
