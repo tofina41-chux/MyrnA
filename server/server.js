@@ -302,6 +302,31 @@ app.post('/api/journal', async (req, res) => {
     }
 });
 
+app.delete('/api/journal/:id', async (req, res) => {
+    const id = req.params.id;
+    if (useDb && pool) {
+        try {
+            const result = await pool.query('DELETE FROM journals WHERE id = $1 RETURNING *', [id]);
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Field note not found' });
+            return res.json({ message: 'Removed successfully from permanent journal database' });
+        } catch (err) {
+            console.error('DB journal delete error:', err);
+        }
+    }
+
+    try {
+        const file = path.join(__dirname, 'journals.json');
+        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        const idx = data.findIndex(j => String(j._id || j.id) === String(id));
+        if (idx === -1) return res.status(404).json({ message: 'Field note not found' });
+        data.splice(idx, 1);
+        fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+        return res.json({ message: 'Removed successfully from fallback archive' });
+    } catch (err) {
+        return res.status(500).json({ error: 'Failed to delete journal item' });
+    }
+});
+
 
 // ==========================================
 // 💼 SERVICES ROUTE ENDPOINTS (NEW)
