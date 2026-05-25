@@ -50,8 +50,20 @@ async function initDB() {
             );
         `);
 
+        // 3. Initialize services table (NEW)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS services (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                price TEXT NOT NULL,
+                type TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
         useDb = true;
-        console.log('✅ Database available — Postgres tables configured.');
+        console.log('✅ Database available — All Postgres tables (Projects, Journals, Services) configured.');
     } catch (err) {
         console.error('❌ Database initialization failed — falling back to JSON:', err.message || err);
         useDb = false;
@@ -103,39 +115,9 @@ app.get('/api/projects', async (req, res) => {
     }
 });
 
-app.get('/api/projects/:id', async (req, res) => {
-    const id = req.params.id;
-    if (useDb && pool) {
-        try {
-            const result = await pool.query(
-                'SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects WHERE id = $1',
-                [id]
-            );
-            if (result.rows.length === 0) return res.status(404).json({ message: 'Project not found' });
-            return res.json(result.rows[0]);
-        } catch (err) {
-            console.error('DB read error (single):', err);
-        }
-    }
-
-    try {
-        const file = path.join(__dirname, 'projects.json');
-        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
-        const found = data.find(p => String(p._id || p.id) === String(id));
-        if (!found) return res.status(404).json({ message: 'Project not found' });
-        return res.json(found);
-    } catch (err) {
-        console.error('JSON fallback read error (single):', err);
-        return res.status(500).json({ error: 'Error reading project' });
-    }
-});
-
 app.post('/api/projects', async (req, res) => {
     const { title, category, location, description, imageUrl } = req.body;
-
-    if (!imageUrl) {
-        return res.status(400).json({ error: 'Please provide an image URL from Cloudinary' });
-    }
+    if (!imageUrl) return res.status(400).json({ error: 'Please provide an image URL from Cloudinary' });
 
     if (useDb && pool) {
         try {
@@ -144,13 +126,7 @@ app.post('/api/projects', async (req, res) => {
                 VALUES ($1, $2, $3, $4, $5)
                 RETURNING id AS "_id", id, title, category, location, description, image_url AS "image_url", image_url AS "imageUrl", created_at AS "createdAt"
             `;
-            const values = [
-                title || 'Untitled Masterpiece',
-                category || 'Curation',
-                location || 'Kenya',
-                description || '',
-                imageUrl
-            ];
+            const values = [title || 'Untitled Masterpiece', category || 'Curation', location || 'Kenya', description || '', imageUrl];
             const result = await pool.query(queryText, values);
             return res.status(201).json(result.rows[0]);
         } catch (err) {
@@ -165,22 +141,14 @@ app.post('/api/projects', async (req, res) => {
         const maxId = data.reduce((m, p) => Math.max(m, Number(p._id || p.id || 0)), 0);
         
         const newItem = {
-            _id: maxId + 1,
-            id: maxId + 1,
-            title: title || 'Untitled Masterpiece',
-            category: category || 'Curation',
-            location: location || 'Kenya',
-            description: description || '',
-            image_url: imageUrl,
-            imageUrl: imageUrl,
-            createdAt: new Date().toISOString()
+            _id: maxId + 1, id: maxId + 1,
+            title: title || 'Untitled Masterpiece', category: category || 'Curation', location: location || 'Kenya',
+            description: description || '', image_url: imageUrl, imageUrl: imageUrl, createdAt: new Date().toISOString()
         };
-        
         data.push(newItem);
         fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
         return res.status(201).json(newItem);
     } catch (err) {
-        console.error('JSON fallback write error:', err);
         return res.status(500).json({ error: 'Failed to save project' });
     }
 });
@@ -203,20 +171,18 @@ app.delete('/api/projects/:id', async (req, res) => {
         const idx = data.findIndex(p => String(p._id || p.id) === String(id));
         if (idx === -1) return res.status(404).json({ message: 'Project not found' });
         data.splice(idx, 1);
-        try { fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8'); } catch (w) { console.warn('Could not persist delete to projects.json:', w.message || w); }
+        fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
         return res.json({ message: 'Removed successfully from fallback archive' });
     } catch (err) {
-        console.error('JSON fallback delete error:', err);
         return res.status(500).json({ error: 'Failed to delete item' });
     }
 });
 
 
 // ==========================================
-// 📝 JOURNAL ROUTE ENDPOINTS (NEW)
+// 📝 JOURNAL ROUTE ENDPOINTS
 // ==========================================
 
-// Fetch all field notes (Newest entries first)
 app.get('/api/journal', async (req, res) => {
     if (useDb && pool) {
         try {
@@ -238,33 +204,19 @@ app.get('/api/journal', async (req, res) => {
         const rawData = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
         
         const normalizedData = rawData.map(j => ({
-            _id: j._id || j.id,
-            id: j.id || j._id,
-            title: j.title,
-            date: j.date || j.entry_date,
-            content: j.content,
-            image_url: j.image_url || j.imageUrl,
-            imageUrl: j.imageUrl || j.image_url,
-            externalLink: j.externalLink || j.external_link,
-            createdAt: j.createdAt || j.created_at
+            _id: j._id || j.id, id: j.id || j._id, title: j.title, date: j.date || j.entry_date, content: j.content,
+            image_url: j.image_url || j.imageUrl, imageUrl: j.imageUrl || j.image_url,
+            externalLink: j.externalLink || j.external_link, createdAt: j.createdAt || j.created_at
         }));
-
-        // Sort items by date descending for uniform behavior
         return res.json(normalizedData.sort((a, b) => new Date(b.date) - new Date(a.date)));
     } catch (err) {
-        console.error('JSON fallback journal read error:', err);
         return res.status(500).json({ error: 'Failed to fetch journal notes' });
     }
 });
 
-// Commit a new field note entry
 app.post('/api/journal', async (req, res) => {
     const { title, date, content, imageUrl, externalLink } = req.body;
-
-    if (!imageUrl) {
-        return res.status(400).json({ error: 'Every entry needs a visual anchor image.' });
-    }
-
+    if (!imageUrl) return res.status(400).json({ error: 'Every entry needs a visual anchor image.' });
     const cleanDate = date || new Date().toISOString().split('T')[0];
 
     if (useDb && pool) {
@@ -291,50 +243,125 @@ app.post('/api/journal', async (req, res) => {
         const maxId = data.reduce((m, j) => Math.max(m, Number(j._id || j.id || 0)), 0);
         
         const newItem = {
-            _id: maxId + 1,
-            id: maxId + 1,
-            title: title || 'Untitled Reflection',
-            date: cleanDate,
-            content: content || '',
-            image_url: imageUrl,
-            imageUrl: imageUrl,
-            externalLink: externalLink || '',
-            createdAt: new Date().toISOString()
+            _id: maxId + 1, id: maxId + 1, title: title || 'Untitled Reflection', date: cleanDate, content: content || '',
+            image_url: imageUrl, imageUrl: imageUrl, externalLink: externalLink || '', createdAt: new Date().toISOString()
         };
-        
         data.push(newItem);
         fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
         return res.status(201).json(newItem);
     } catch (err) {
-        console.error('JSON fallback journal write error:', err);
         return res.status(500).json({ error: 'Failed to save field note' });
     }
 });
 
-// Delete a field note entry
-app.delete('/api/journal/:id', async (req, res) => {
-    const id = req.params.id;
+
+// ==========================================
+// 💼 SERVICES ROUTE ENDPOINTS (NEW)
+// ==========================================
+
+// Fetch all services
+app.get('/api/services', async (req, res) => {
     if (useDb && pool) {
         try {
-            const result = await pool.query('DELETE FROM journals WHERE id = $1 RETURNING *', [id]);
-            if (result.rows.length === 0) return res.status(404).json({ message: 'Field note not found' });
-            return res.json({ message: 'Removed successfully from permanent journal archive' });
+            const result = await pool.query('SELECT id AS "_id", id, title, description, price, type, created_at AS "createdAt" FROM services ORDER BY id DESC');
+            return res.json(result.rows);
         } catch (err) {
-            console.error('DB journal delete error:', err);
+            console.error('DB services read error:', err);
         }
     }
 
     try {
-        const file = path.join(__dirname, 'journals.json');
+        const file = path.join(__dirname, 'services.json');
+        if (!fs.existsSync(file)) fs.writeFileSync(file, '[]', 'utf8');
+        const rawData = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        
+        const normalizedData = rawData.map(s => ({
+            _id: s._id || s.id,
+            id: s.id || s._id,
+            title: s.title,
+            description: s.description,
+            price: s.price,
+            type: s.type,
+            createdAt: s.createdAt || s.created_at
+        }));
+        return res.json(normalizedData.reverse());
+    } catch (err) {
+        console.error('JSON fallback services read error:', err);
+        return res.status(500).json({ error: 'Failed to fetch services' });
+    }
+});
+
+// Create a new service offering
+app.post('/api/services', async (req, res) => {
+    const { title, description, price, type } = req.body;
+
+    if (!title || !description || !price || !type) {
+        return res.status(400).json({ error: 'Please provide all service offering details.' });
+    }
+
+    if (useDb && pool) {
+        try {
+            const queryText = `
+                INSERT INTO services (title, description, price, type)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id AS "_id", id, title, description, price, type, created_at AS "createdAt"
+            `;
+            const values = [title, description, price, type];
+            const result = await pool.query(queryText, values);
+            return res.status(201).json(result.rows[0]);
+        } catch (err) {
+            console.error('DB services write error:', err);
+        }
+    }
+
+    try {
+        const file = path.join(__dirname, 'services.json');
+        if (!fs.existsSync(file)) fs.writeFileSync(file, '[]', 'utf8');
         const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
-        const idx = data.findIndex(j => String(j._id || j.id) === String(id));
-        if (idx === -1) return res.status(404).json({ message: 'Field note not found' });
+        const maxId = data.reduce((m, s) => Math.max(m, Number(s._id || s.id || 0)), 0);
+        
+        const newItem = {
+            _id: maxId + 1,
+            id: maxId + 1,
+            title,
+            description,
+            price,
+            type,
+            createdAt: new Date().toISOString()
+        };
+        data.push(newItem);
+        fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+        return res.status(201).json(newItem);
+    } catch (err) {
+        console.error('JSON fallback services write error:', err);
+        return res.status(500).json({ error: 'Failed to save service offering' });
+    }
+});
+
+// Delete a service offering
+app.delete('/api/services/:id', async (req, res) => {
+    const id = req.params.id;
+    if (useDb && pool) {
+        try {
+            const result = await pool.query('DELETE FROM services WHERE id = $1 RETURNING *', [id]);
+            if (result.rows.length === 0) return res.status(404).json({ message: 'Service offering not found' });
+            return res.json({ message: 'Service removed successfully from permanent database archive' });
+        } catch (err) {
+            console.error('DB services delete error:', err);
+        }
+    }
+
+    try {
+        const file = path.join(__dirname, 'services.json');
+        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        const idx = data.findIndex(s => String(s._id || s.id) === String(id));
+        if (idx === -1) return res.status(404).json({ message: 'Service offering not found' });
         data.splice(idx, 1);
         fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-        return res.json({ message: 'Removed successfully from fallback journal archive' });
+        return res.json({ message: 'Service removed successfully from fallback archive' });
     } catch (err) {
-        console.error('JSON fallback journal delete error:', err);
-        return res.status(500).json({ error: 'Failed to delete journal item' });
+        console.error('JSON fallback services delete error:', err);
+        return res.status(500).json({ error: 'Failed to delete service item' });
     }
 });
 
