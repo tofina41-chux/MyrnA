@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../api.js'; // Adjust the dots based on which folder you are in
 
 function AddProject() {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [isLoading, setIsLoading] = useState(!!id);
     const [formData, setFormData] = useState({
         title: '',
         category: 'Curation',
@@ -10,6 +14,29 @@ function AddProject() {
         location: 'Kenya',
         impactReinvestment: 50
     });
+
+    useEffect(() => {
+        if (id) {
+            // Load existing project for editing
+            fetch(`${API_BASE_URL}/api/projects/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    setFormData({
+                        title: data.title || '',
+                        category: data.category || 'Curation',
+                        description: data.description || '',
+                        imageUrl: data.imageUrl || data.image_url || '',
+                        location: data.location || 'Kenya',
+                        impactReinvestment: data.impactReinvestment || 50
+                    });
+                    setIsLoading(false);
+                })
+                .catch(err => {
+                    console.error("Error loading project:", err);
+                    setIsLoading(false);
+                });
+        }
+    }, [id]);
 
     const handleUpload = () => {
         if (!window.cloudinary) {
@@ -22,6 +49,9 @@ function AddProject() {
                 cloudName: 'djmjge5xu',
                 uploadPreset: 'myr_unsigned',
                 sources: ['local', 'url', 'camera'],
+                // 🚀 THE FIX: Tell the widget to accept larger files from the browser
+                maxImageFileSize: 25000000, // Elevates the frontend cap to 25MB
+                clientAllowedFormats: ['png', 'jpeg', 'jpg', 'webp'],
                 cropping: true,
                 multiple: false,
                 styles: {
@@ -59,15 +89,18 @@ function AddProject() {
 
         try {
             // ✅ Fixed: Using backticks handles the dynamic variable perfectly
-            const response = await fetch(`${API_BASE_URL}/api/projects`, {
-                method: 'POST',
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_BASE_URL}/api/projects/${id}` : `${API_BASE_URL}/api/projects`;
+            
+            const response = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
             
             if (response.ok) {
-                alert("Masterpiece Archived. ✨");
-                window.location.href = "/";
+                alert(id ? "Project Updated. ✨" : "Masterpiece Archived. ✨");
+                window.location.href = id ? `/project/${id}` : "/";
             } else {
                 const errData = await response.json();
                 alert(`Server Error: ${errData.error || "Failed to save"}`);
@@ -88,9 +121,12 @@ function AddProject() {
 
     return (
         <div className="min-h-screen bg-white p-12 pb-40">
+            {isLoading ? (
+                <div className="flex items-center justify-center h-screen text-neutral-500">Loading...</div>
+            ) : (
             <div className="max-w-2xl mx-auto">
                 <h2 className="project-title text-2xl mb-12 border-b border-black/5 pb-6 text-black italic">
-                    Add to Archive
+                    {id ? 'Edit Project' : 'Add to Archive'}
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-10">
@@ -181,10 +217,11 @@ function AddProject() {
                         type="submit"
                         className="w-full bg-myr-orange text-white py-8 text-[11px] uppercase tracking-[0.6em] font-bold hover:bg-black transition-all duration-500 mt-12 shadow-lg shadow-myr-orange/10"
                     >
-                        Commit to Archive
+                        {id ? 'Update Project' : 'Commit to Archive'}
                     </button>
                 </form>
             </div>
+            )}
         </div>
     );
 }

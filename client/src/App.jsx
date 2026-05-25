@@ -40,19 +40,29 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Gallery isAdmin={isAdmin} />} />
-            <Route path="/project/:id" element={<ProjectDetails />} />
+            <Route path="/project/:id" element={<ProjectDetails isAdmin={isAdmin} />} />
             <Route path="/about" element={<About />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/journal" element={<Journal />} />
+            <Route path="/services" element={<Services isAdmin={isAdmin} />} />
+            <Route path="/journal" element={<Journal isAdmin={isAdmin} />} />
             <Route path="/login" element={<Login setIsAdmin={setIsAdmin} />} />
             <Route path="/admin/journal" element={<ProtectedRoute><AddJournal /></ProtectedRoute>} />
             <Route path="/add-journal" element={<ProtectedRoute><AddJournal /></ProtectedRoute>}/>
-            <Route path="/add-service" element={<AddService />} />
+            <Route path="/edit-journal/:id" element={<ProtectedRoute><AddJournal /></ProtectedRoute>}/>
+            <Route path="/add-service" element={<ProtectedRoute><AddService /></ProtectedRoute>} />
+            <Route path="/edit-service/:id" element={<ProtectedRoute><AddService /></ProtectedRoute>}/>
 
 
             {/* 🔐 Protected Admin Routes */}
             <Route
               path="/add"
+              element={
+                <ProtectedRoute>
+                  <AddProject />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/edit-project/:id"
               element={
                 <ProtectedRoute>
                   <AddProject />

@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 function AddJournal() {
     const navigate = useNavigate();
+    const { id } = useParams();
+    const [isLoading, setIsLoading] = useState(!!id);
     const [formData, setFormData] = useState({
         title: '',
         date: new Date().toISOString().split('T')[0], // Defaults to today
@@ -10,6 +12,30 @@ function AddJournal() {
         imageUrl: '',
         externalLink: '' // For IG/FB bridge
     });
+
+    const API_URL = import.meta.env.VITE_API_URL || 'https://myrna-ms9b.onrender.com';
+
+    useEffect(() => {
+        if (id) {
+            // Load existing journal entry for editing
+            fetch(`${API_URL}/api/journal/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    setFormData({
+                        title: data.title || '',
+                        date: data.date || data.entry_date || new Date().toISOString().split('T')[0],
+                        content: data.content || '',
+                        imageUrl: data.imageUrl || data.image_url || '',
+                        externalLink: data.externalLink || data.external_link || ''
+                    });
+                    setIsLoading(false);
+                })
+                .catch(err => {
+                    console.error("Error loading journal entry:", err);
+                    setIsLoading(false);
+                });
+        }
+    }, [id, API_URL]);
 
     const handleUpload = () => {
         if (!window.cloudinary) {
@@ -40,26 +66,34 @@ function AddJournal() {
         if (!formData.imageUrl) return alert("Every entry needs a visual anchor.");
 
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${API_URL}/api/journal`, {
-                method: 'POST',
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_URL}/api/journal/${id}` : `${API_URL}/api/journal`;
+            
+            const response = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
             if (response.ok) {
-                alert("Field Note Archived. ✨");
+                alert(id ? "Field Note Updated. ✨" : "Field Note Archived. ✨");
                 navigate('/journal');
+            } else {
+                alert("Error saving journal entry.");
             }
         } catch (err) {
             console.error("Journal Error:", err);
+            alert("Error saving journal entry.");
         }
     };
 
     return (
         <div className="min-h-screen bg-white p-6 md:p-12 pb-40">
+            {isLoading ? (
+                <div className="flex items-center justify-center h-screen text-neutral-500">Loading...</div>
+            ) : (
             <div className="max-w-3xl mx-auto">
                 <h2 className="text-2xl mb-12 border-b border-black/5 pb-6 text-black italic font-serif">
-                    New Field Note — Journal Entry
+                    {id ? 'Edit Field Note' : 'New Field Note — Journal Entry'}
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-12">
@@ -84,6 +118,7 @@ function AddJournal() {
                             <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-2 font-bold">Entry Title</label>
                             <input
                                 type="text"
+                                value={formData.title}
                                 className="border-b border-black/10 py-2 outline-none focus:border-myr-orange text-xl font-serif italic"
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 required
@@ -105,6 +140,7 @@ function AddJournal() {
                     <div className="flex flex-col">
                         <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-2 font-bold">Narrative</label>
                         <textarea
+                            value={formData.content}
                             className="w-full border border-black/5 bg-neutral-50/30 p-8 h-64 outline-none focus:border-myr-orange text-sm leading-relaxed"
                             placeholder="Pen your thoughts on the creative process..."
                             onChange={(e) => setFormData({ ...formData, content: e.target.value })}
@@ -117,6 +153,7 @@ function AddJournal() {
                         <label className="text-[9px] uppercase tracking-widest text-myr-orange mb-2 font-bold">Instagram/External Link (Optional)</label>
                         <input
                             type="url"
+                            value={formData.externalLink}
                             placeholder="https://www.instagram.com/p/..."
                             className="border-b border-black/10 py-2 outline-none focus:border-myr-orange text-[10px]"
                             onChange={(e) => setFormData({ ...formData, externalLink: e.target.value })}
@@ -127,10 +164,11 @@ function AddJournal() {
                         type="submit"
                         className="w-full bg-black text-white py-6 text-[11px] uppercase tracking-[0.6em] font-bold hover:bg-myr-orange transition-all duration-500"
                     >
-                        Publish to Journal
+                        {id ? 'Update Journal Entry' : 'Publish to Journal'}
                     </button>
                 </form>
             </div>
+            )}
         </div>
     );
 }

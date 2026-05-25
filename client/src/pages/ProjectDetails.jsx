@@ -3,7 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import API_BASE_URL from '../api.js';
 
-function ProjectDetails() {
+function ProjectDetails({ isAdmin: propIsAdmin }) {
+    // 🚀 Dynamic storage verification fallback check
+    const isAdmin = propIsAdmin || localStorage.getItem('token') || localStorage.getItem('isAdmin') === 'true';
     const { id } = useParams();
     const [project, setProject] = useState(null);
     const [status, setStatus] = useState('Loading project...');
@@ -25,6 +27,23 @@ function ProjectDetails() {
             });
     }, [id]);
 
+    const deleteProject = async () => {
+        if (!window.confirm("Delete this project?")) return;
+        
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/projects/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert("Project deleted successfully.");
+                window.location.href = '/';
+            } else {
+                alert("Failed to delete project from the server.");
+            }
+        } catch (err) {
+            console.error("Error deleting project:", err);
+            alert("Error deleting project.");
+        }
+    };
+
     if (!project) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center text-sm text-neutral-500">
@@ -41,9 +60,27 @@ function ProjectDetails() {
             animate={{ opacity: 1 }}
             className="min-h-screen bg-white text-black p-6 md:p-20"
         >
-            <Link to="/" className="text-[10px] uppercase tracking-[0.5em] mb-20 block hover:text-myr-orange transition-colors">
-                ← Back to Archive
-            </Link>
+            <div className="flex justify-between items-center mb-20">
+                <Link to="/" className="text-[10px] uppercase tracking-[0.5em] hover:text-myr-orange transition-colors">
+                    ← Back to Archive
+                </Link>
+                {isAdmin && (
+                    <div className="flex gap-4">
+                        <Link
+                            to={`/edit-project/${id}`}
+                            className="text-[10px] uppercase tracking-[0.5em] text-myr-orange hover:opacity-70 transition-opacity"
+                        >
+                            [ Edit ]
+                        </Link>
+                        <button
+                            onClick={deleteProject}
+                            className="text-[10px] uppercase tracking-[0.5em] text-red-500 hover:text-red-700 transition-colors"
+                        >
+                            [ Delete ]
+                        </button>
+                    </div>
+                )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-20">
                 {/* Large Image */}
