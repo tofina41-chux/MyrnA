@@ -115,6 +115,54 @@ app.get('/api/projects', async (req, res) => {
     }
 });
 
+
+// Fetch a single project by ID
+app.get('/api/projects/:id', async (req, res) => {
+    const { id } = req.params;
+
+    if (useDb && pool) {
+        try {
+            const result = await pool.query(
+                'SELECT id AS "_id", id, title, category, location, description, image_url AS "image_url", image_url AS "imageUrl", created_at AS "createdAt" FROM projects WHERE id = $1',
+                [id]
+            );
+            if (result.rows.length > 0) {
+                return res.json(result.rows[0]);
+            }
+            // If not found in DB, don't fail immediately, check the JSON fallback below
+        } catch (err) {
+            console.error('DB single project read error:', err);
+        }
+    }
+
+    try {
+        const file = path.join(__dirname, 'projects.json');
+        if (fs.existsSync(file)) {
+            const rawData = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+            const project = rawData.find(p => String(p._id || p.id) === String(id));
+            
+            if (project) {
+                const normalizedProject = {
+                    _id: project._id || project.id,
+                    id: project.id || project._id,
+                    title: project.title,
+                    category: project.category,
+                    location: project.location,
+                    description: project.description,
+                    image_url: project.image_url || project.imageUrl,
+                    imageUrl: project.imageUrl || project.image_url,
+                    createdAt: project.createdAt || project.created_at
+                };
+                return res.json(normalizedProject);
+            }
+        }
+        return res.status(404).json({ error: 'Project not found' });
+    } catch (err) {
+        console.error('JSON fallback single project read error:', err);
+        return res.status(500).json({ error: 'Failed to fetch project details' });
+    }
+});
+
 app.post('/api/projects', async (req, res) => {
     const { title, category, location, description, imageUrl } = req.body;
     if (!imageUrl) return res.status(400).json({ error: 'Please provide an image URL from Cloudinary' });
