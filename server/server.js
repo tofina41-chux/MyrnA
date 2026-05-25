@@ -59,19 +59,33 @@ app.get('/', (req, res) => res.send('MYR API is Live.'));
 app.get('/api/projects', async (req, res) => {
     if (useDb && pool) {
         try {
-            const result = await pool.query('SELECT id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt" FROM projects ORDER BY id DESC');
+            const result = await pool.query('SELECT id AS "_id", id, title, category, location, description, image_url AS "image_url", image_url AS "imageUrl", created_at AS "createdAt" FROM projects ORDER BY id DESC');
             return res.json(result.rows);
         } catch (err) {
             console.error('DB read error:', err);
-            // Fallthrough to JSON fallback
         }
     }
 
-    // JSON fallback
+    // JSON fallback - Normalizing keys defensively
     try {
         const file = path.join(__dirname, 'projects.json');
-        const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
-        return res.json(data.reverse());
+        if (!fs.existsSync(file)) fs.writeFileSync(file, '[]', 'utf8');
+        const rawData = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
+        
+        // Clean each item dynamically so it functions on both key styles
+        const normalizedData = rawData.map(p => ({
+            _id: p._id || p.id,
+            id: p.id || p._id,
+            title: p.title,
+            category: p.category,
+            location: p.location,
+            description: p.description,
+            image_url: p.image_url || p.imageUrl,
+            imageUrl: p.imageUrl || p.image_url,
+            createdAt: p.createdAt || p.created_at
+        }));
+
+        return res.json(normalizedData.reverse());
     } catch (err) {
         console.error('JSON fallback read error:', err);
         return res.status(500).json({ error: 'Failed to fetch archive items' });
@@ -107,7 +121,7 @@ app.get('/api/projects/:id', async (req, res) => {
     }
 });
 
-// 4. POST New Project (Inserts directly into your permanent cloud database)
+// 4. POST New Project
 app.post('/api/projects', async (req, res) => {
     const { title, category, location, description, imageUrl } = req.body;
 
@@ -120,7 +134,7 @@ app.post('/api/projects', async (req, res) => {
             const queryText = `
                 INSERT INTO projects (title, category, location, description, image_url)
                 VALUES ($1, $2, $3, $4, $5)
-                RETURNING id AS "_id", title, category, location, description, image_url AS "imageUrl", created_at AS "createdAt"
+                RETURNING id AS "_id", id, title, category, location, description, image_url AS "image_url", image_url AS "imageUrl", created_at AS "createdAt"
             `;
             const values = [
                 title || 'Untitled Masterpiece',
@@ -133,30 +147,30 @@ app.post('/api/projects', async (req, res) => {
             return res.status(201).json(result.rows[0]);
         } catch (err) {
             console.error('DB write error:', err);
-            // fallthrough to JSON fallback
         }
     }
 
-    // JSON fallback: append to projects.json (best-effort)
+    // JSON fallback: save data safely with both naming standard variations
     try {
         const file = path.join(__dirname, 'projects.json');
+        if (!fs.existsSync(file)) fs.writeFileSync(file, '[]', 'utf8');
         const data = JSON.parse(fs.readFileSync(file, 'utf8')) || [];
         const maxId = data.reduce((m, p) => Math.max(m, Number(p._id || p.id || 0)), 0);
+        
         const newItem = {
             _id: maxId + 1,
+            id: maxId + 1,
             title: title || 'Untitled Masterpiece',
             category: category || 'Curation',
             location: location || 'Kenya',
             description: description || '',
+            image_url: imageUrl,
             imageUrl: imageUrl,
             createdAt: new Date().toISOString()
         };
+        
         data.push(newItem);
-        try {
-            fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-        } catch (writeErr) {
-            console.warn('Could not persist to projects.json (write failed):', writeErr.message || writeErr);
-        }
+        fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
         return res.status(201).json(newItem);
     } catch (err) {
         console.error('JSON fallback write error:', err);
